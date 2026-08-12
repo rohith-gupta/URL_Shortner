@@ -1,6 +1,7 @@
 package com.urlshortener.service;
 
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.entity.UrlMapping;
 import com.urlshortener.exception.ShortCodeGenerationException;
@@ -123,5 +124,24 @@ public class UrlService {
         UrlMapping mapping = repository.findByShortCode(shortCode)
                 .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
         return new UrlDetailsResponse(mapping.getOriginalUrl(), mapping.getShortCode(), buildShortUrl(mapping), mapping.getCreatedAt());
+    }
+
+    /**
+     * Looks up basic click-count analytics for a short code — {@code clickCount} as already
+     * maintained on {@link UrlMapping} by {@link #resolveAndRecordRedirect}, nothing more. A
+     * pure read, same shape and same rationale as {@link #getUrlDetails}: no write here, so
+     * {@code @Transactional(readOnly = true)} rather than a fresh justification. Deliberately
+     * does not compute or store anything beyond the existing counter — richer analytics
+     * (referrer/device/geography) is explicitly out of scope for this endpoint, not a gap to
+     * quietly fill in later without a decision.
+     *
+     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}
+     */
+    @Transactional(readOnly = true)
+    public UrlAnalyticsResponse getUrlAnalytics(String shortCode) {
+        UrlMapping mapping = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        return new UrlAnalyticsResponse(mapping.getShortCode(), buildShortUrl(mapping), mapping.getOriginalUrl(),
+                mapping.getClickCount(), mapping.getCreatedAt());
     }
 }

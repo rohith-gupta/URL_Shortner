@@ -1,6 +1,7 @@
 package com.urlshortener.controller;
 
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.service.UrlService;
@@ -111,5 +112,34 @@ class UrlControllerTest {
     @Test
     void getUrlDetails_malformedShortCode_returns404() throws Exception {
         mockMvc.perform(get("/api/urls/short")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getUrlAnalytics_existingShortCode_returns200WithBody() throws Exception {
+        UrlAnalyticsResponse stubbed = new UrlAnalyticsResponse(
+                "abc1234", "http://localhost:8080/abc1234", "https://example.com", 42L, Instant.parse("2026-08-12T10:00:00Z"));
+        when(urlService.getUrlAnalytics("abc1234")).thenReturn(stubbed);
+
+        mockMvc.perform(get("/api/urls/abc1234/analytics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shortCode").value("abc1234"))
+                .andExpect(jsonPath("$.shortUrl").value("http://localhost:8080/abc1234"))
+                .andExpect(jsonPath("$.originalUrl").value("https://example.com"))
+                .andExpect(jsonPath("$.clickCount").value(42))
+                .andExpect(jsonPath("$.createdAt").exists());
+    }
+
+    @Test
+    void getUrlAnalytics_unknownShortCode_returns404() throws Exception {
+        when(urlService.getUrlAnalytics("zzzzzzz")).thenThrow(new ShortCodeNotFoundException("zzzzzzz"));
+
+        mockMvc.perform(get("/api/urls/zzzzzzz/analytics"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void getUrlAnalytics_malformedShortCode_returns404() throws Exception {
+        mockMvc.perform(get("/api/urls/short/analytics")).andExpect(status().isNotFound());
     }
 }

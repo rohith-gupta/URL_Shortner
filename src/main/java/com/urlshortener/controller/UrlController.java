@@ -2,6 +2,7 @@ package com.urlshortener.controller;
 
 import com.urlshortener.dto.CreateUrlRequest;
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.service.UrlService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,8 +50,8 @@ public class UrlController {
     public ResponseEntity<CreateUrlResponse> createShortUrl(@Valid @RequestBody CreateUrlRequest request) {
         CreateUrlResponse response = urlService.createShortUrl(request.originalUrl());
 
-        // Location points at the (future) GET /api/urls/{shortCode} resource, not the public
-        // redirect entry point GET /{shortCode} — those are different resources with different
+        // Location points at the GET /api/urls/{shortCode} resource, not the public redirect
+        // entry point GET /{shortCode} — those are different resources with different
         // semantics, and only the former is "the resource this POST created" in REST terms.
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{shortCode}")
@@ -73,5 +74,21 @@ public class UrlController {
     @GetMapping("/{shortCode:[0-9a-zA-Z]{7}}")
     public UrlDetailsResponse getUrlDetails(@PathVariable String shortCode) {
         return urlService.getUrlDetails(shortCode);
+    }
+
+    @Operation(
+            summary = "Get basic click-count analytics",
+            description = "Returns the redirect (click) count for a short code, as recorded by "
+                    + "GET /{shortCode}. Read-only: does not redirect and does not affect the "
+                    + "count itself. Basic analytics only — no referrer/device/geography "
+                    + "breakdown."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Basic analytics for the short URL"),
+            @ApiResponse(responseCode = "404", description = "Unknown or malformed short code")
+    })
+    @GetMapping("/{shortCode:[0-9a-zA-Z]{7}}/analytics")
+    public UrlAnalyticsResponse getUrlAnalytics(@PathVariable String shortCode) {
+        return urlService.getUrlAnalytics(shortCode);
     }
 }

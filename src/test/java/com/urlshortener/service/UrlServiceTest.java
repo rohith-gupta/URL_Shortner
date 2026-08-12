@@ -1,6 +1,7 @@
 package com.urlshortener.service;
 
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.entity.UrlMapping;
 import com.urlshortener.exception.ShortCodeGenerationException;
@@ -156,6 +157,37 @@ class UrlServiceTest {
         when(repository.findByShortCode("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getUrlDetails("missing"))
+                .isInstanceOf(ShortCodeNotFoundException.class);
+
+        verify(repository, never()).incrementClickCount(any());
+    }
+
+    // --- getUrlAnalytics ---
+    // clickCount is only ever mutated via the atomic UPDATE (UrlMapping has no setter/increment
+    // method); real click-accumulation is covered at the repository/integration level where
+    // that atomic increment actually runs. This unit test covers call-forwarding and the
+    // read-only guarantee, which is all that's expressible against a mocked repository.
+
+    @Test
+    void getUrlAnalytics_returnsAllFieldsWithoutIncrementing() {
+        UrlMapping mapping = new UrlMapping("https://example.com/target", "found01");
+        when(repository.findByShortCode("found01")).thenReturn(Optional.of(mapping));
+
+        UrlAnalyticsResponse response = service.getUrlAnalytics("found01");
+
+        assertThat(response.shortCode()).isEqualTo("found01");
+        assertThat(response.shortUrl()).isEqualTo("http://localhost:8080/found01");
+        assertThat(response.originalUrl()).isEqualTo("https://example.com/target");
+        assertThat(response.clickCount()).isEqualTo(mapping.getClickCount());
+        assertThat(response.createdAt()).isEqualTo(mapping.getCreatedAt());
+        verify(repository, never()).incrementClickCount(any());
+    }
+
+    @Test
+    void getUrlAnalytics_unknownShortCode_throws() {
+        when(repository.findByShortCode("missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getUrlAnalytics("missing"))
                 .isInstanceOf(ShortCodeNotFoundException.class);
 
         verify(repository, never()).incrementClickCount(any());
