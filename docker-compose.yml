@@ -1,0 +1,31 @@
+# Local runtime datastore for reviewers/developers. Approved decision: PostgreSQL is the
+# primary runtime database (see docs/AI_WORKLOG.md, "Decision: Database technology").
+# Start with: docker compose up -d
+# The values below match the defaults baked into src/main/resources/application.yml so the
+# app connects with zero extra configuration; override via env vars for anything else.
+#
+# NOTE: host port is 5433, not the default 5432. On at least one dev machine a native
+# (non-Docker) PostgreSQL service was already bound to 5432, silently swallowing connections
+# meant for this container (same symptom as a bad password, since the wrong server answers).
+# 5433 avoids that collision without touching the host's other Postgres install. See
+# docs/AI_WORKLOG.md, "Verify PostgreSQL runtime configuration end-to-end".
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: url-shortener-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-urlshortener}
+      POSTGRES_USER: ${POSTGRES_USER:-urlshortener}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-urlshortener}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-urlshortener} -d $${POSTGRES_DB:-urlshortener}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

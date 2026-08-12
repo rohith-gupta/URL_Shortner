@@ -1,0 +1,35 @@
+# Runtime configuration. Approved runtime datastore: PostgreSQL (see docs/AI_WORKLOG.md,
+# "Decision: Database technology"). Connection settings are environment-variable driven so a
+# reviewer never has to edit this file; see docker-compose.yml for local Postgres and the
+# matching defaults below.
+#
+# Schema management — approved 2026-08-12 (see docs/AI_WORKLOG.md, "Decision: Schema
+# management (Flyway)"): Flyway owns the schema (migrations under
+# src/main/resources/db/migration); Hibernate ddl-auto is "validate" only — Hibernate never
+# creates/alters the production schema. Startup fails fast if entities and schema disagree.
+spring:
+  application:
+    name: url-shortener
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/urlshortener}
+    username: ${SPRING_DATASOURCE_USERNAME:urlshortener}
+    password: ${SPRING_DATASOURCE_PASSWORD:urlshortener}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false # avoid lazy-loading outside the service layer; standard REST API default
+  flyway:
+    enabled: true # explicit for clarity; Spring Boot auto-enables once flyway-core is on the classpath
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+# Public base URL used to build the "shortUrl" field in API responses. Not part of any
+# previously-approved decision — a minimal implementation necessity for POST /api/urls; see
+# docs/AI_WORKLOG.md for the note. Override in real deployments via APP_BASE_URL.
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}

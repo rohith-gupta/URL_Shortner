@@ -1,0 +1,33 @@
+# Test-scope configuration. Per the approved database decision (docs/AI_WORKLOG.md,
+# "Decision: Database technology"), H2 is used for lightweight automated tests so the suite
+# runs without Docker/Postgres. Whether a PostgreSQL Testcontainers-based integration test is
+# also needed is an explicit open decision (docs/REQUIREMENTS.md), not resolved here.
+#
+# Flyway is deliberately disabled here: the production migrations under
+# src/main/resources/db/migration are PostgreSQL-specific SQL, and running them against H2
+# would either need a second, parallel H2-flavored migration set (unnecessary complexity for a
+# prototype) or rely on H2's Postgres-compatibility mode (an untested assumption). Instead,
+# tests let Hibernate generate the schema directly from the entity mappings (ddl-auto:
+# create-drop), which exercises the entity mappings themselves; the real Flyway migration
+# against real PostgreSQL is validated separately (see docs/AI_WORKLOG.md).
+spring:
+  datasource:
+    url: jdbc:h2:mem:urlshortener;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  flyway:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  base-url: http://localhost:8080
