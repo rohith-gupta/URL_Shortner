@@ -1,6 +1,7 @@
 package com.urlshortener.service;
 
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.entity.UrlMapping;
 import com.urlshortener.exception.ShortCodeGenerationException;
 import com.urlshortener.exception.ShortCodeNotFoundException;
@@ -76,8 +77,11 @@ public class UrlService {
     }
 
     private CreateUrlResponse toResponse(UrlMapping mapping) {
-        String shortUrl = baseUrl + "/" + mapping.getShortCode();
-        return new CreateUrlResponse(mapping.getOriginalUrl(), mapping.getShortCode(), shortUrl, mapping.getCreatedAt());
+        return new CreateUrlResponse(mapping.getOriginalUrl(), mapping.getShortCode(), buildShortUrl(mapping), mapping.getCreatedAt());
+    }
+
+    private String buildShortUrl(UrlMapping mapping) {
+        return baseUrl + "/" + mapping.getShortCode();
     }
 
     /**
@@ -102,5 +106,22 @@ public class UrlService {
                 .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
         repository.incrementClickCount(shortCode);
         return mapping.getOriginalUrl();
+    }
+
+    /**
+     * Looks up short URL metadata without redirecting, incrementing the click count, or
+     * otherwise modifying anything — a pure read. {@code @Transactional(readOnly = true)}: not
+     * required for correctness (a single {@code findByShortCode} needs no transaction at all
+     * for the same reason {@link #createShortUrl}'s reads don't), but it lets Hibernate skip
+     * dirty-checking for this call and documents the intent unambiguously — this method must
+     * never gain a write in the future without that becoming visually obvious.
+     *
+     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}
+     */
+    @Transactional(readOnly = true)
+    public UrlDetailsResponse getUrlDetails(String shortCode) {
+        UrlMapping mapping = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        return new UrlDetailsResponse(mapping.getOriginalUrl(), mapping.getShortCode(), buildShortUrl(mapping), mapping.getCreatedAt());
     }
 }

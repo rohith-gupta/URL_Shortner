@@ -1,6 +1,8 @@
 package com.urlshortener.controller;
 
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlDetailsResponse;
+import com.urlshortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.service.UrlService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -79,5 +82,34 @@ class UrlControllerTest {
     void createShortUrl_missingBody_returns400() throws Exception {
         mockMvc.perform(post("/api/urls").contentType("application/json"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getUrlDetails_existingShortCode_returns200WithBody() throws Exception {
+        UrlDetailsResponse stubbed = new UrlDetailsResponse(
+                "https://example.com", "abc1234", "http://localhost:8080/abc1234", Instant.parse("2026-08-12T10:00:00Z"));
+        when(urlService.getUrlDetails("abc1234")).thenReturn(stubbed);
+
+        mockMvc.perform(get("/api/urls/abc1234"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.originalUrl").value("https://example.com"))
+                .andExpect(jsonPath("$.shortCode").value("abc1234"))
+                .andExpect(jsonPath("$.shortUrl").value("http://localhost:8080/abc1234"))
+                .andExpect(jsonPath("$.createdAt").exists())
+                .andExpect(jsonPath("$.clickCount").doesNotExist());
+    }
+
+    @Test
+    void getUrlDetails_unknownShortCode_returns404() throws Exception {
+        when(urlService.getUrlDetails("zzzzzzz")).thenThrow(new ShortCodeNotFoundException("zzzzzzz"));
+
+        mockMvc.perform(get("/api/urls/zzzzzzz"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void getUrlDetails_malformedShortCode_returns404() throws Exception {
+        mockMvc.perform(get("/api/urls/short")).andExpect(status().isNotFound());
     }
 }

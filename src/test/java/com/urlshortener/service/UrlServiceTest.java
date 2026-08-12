@@ -1,6 +1,7 @@
 package com.urlshortener.service;
 
 import com.urlshortener.dto.CreateUrlResponse;
+import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.entity.UrlMapping;
 import com.urlshortener.exception.ShortCodeGenerationException;
 import com.urlshortener.exception.ShortCodeNotFoundException;
@@ -129,6 +130,32 @@ class UrlServiceTest {
         when(repository.findByShortCode("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.resolveAndRecordRedirect("missing"))
+                .isInstanceOf(ShortCodeNotFoundException.class);
+
+        verify(repository, never()).incrementClickCount(any());
+    }
+
+    // --- getUrlDetails ---
+
+    @Test
+    void getUrlDetails_returnsMetadataWithoutRedirectingOrIncrementing() {
+        UrlMapping mapping = new UrlMapping("https://example.com/target", "found01");
+        when(repository.findByShortCode("found01")).thenReturn(Optional.of(mapping));
+
+        UrlDetailsResponse response = service.getUrlDetails("found01");
+
+        assertThat(response.originalUrl()).isEqualTo("https://example.com/target");
+        assertThat(response.shortCode()).isEqualTo("found01");
+        assertThat(response.shortUrl()).isEqualTo("http://localhost:8080/found01");
+        assertThat(response.createdAt()).isEqualTo(mapping.getCreatedAt());
+        verify(repository, never()).incrementClickCount(any());
+    }
+
+    @Test
+    void getUrlDetails_unknownShortCode_throws() {
+        when(repository.findByShortCode("missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getUrlDetails("missing"))
                 .isInstanceOf(ShortCodeNotFoundException.class);
 
         verify(repository, never()).incrementClickCount(any());
