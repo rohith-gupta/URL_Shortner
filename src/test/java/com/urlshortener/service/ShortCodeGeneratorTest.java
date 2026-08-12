@@ -40,4 +40,29 @@ class ShortCodeGeneratorTest {
         assertThat(ShortCodeGenerator.ALPHABET).hasSize(62);
         assertThat(ShortCodeGenerator.ALPHABET).matches("[0-9a-zA-Z]{62}");
     }
+
+    // --- ROUTE_PATTERN (shared by RedirectController and UrlController's details/analytics
+    // routes; must accept both generated codes and custom aliases — see docs/AI_WORKLOG.md,
+    // "Brownfield: add optional custom aliases to POST /api/urls") ---
+
+    @Test
+    void routePattern_acceptsAnyGeneratedCode() {
+        assertThat(generator.generate()).matches(ShortCodeGenerator.ROUTE_PATTERN);
+    }
+
+    @Test
+    void routePattern_acceptsValidCustomAliases() {
+        assertThat("products").matches(ShortCodeGenerator.ROUTE_PATTERN);
+        assertThat("my-page_1").matches(ShortCodeGenerator.ROUTE_PATTERN);
+        assertThat("abcd").matches(ShortCodeGenerator.ROUTE_PATTERN); // exactly 4, the minimum
+        assertThat("a".repeat(30)).matches(ShortCodeGenerator.ROUTE_PATTERN); // exactly 30, the maximum
+    }
+
+    @Test
+    void routePattern_rejectsOutOfRangeOrInvalidCharacters() {
+        assertThat("abc").doesNotMatch(ShortCodeGenerator.ROUTE_PATTERN); // 3 chars, below minimum
+        assertThat("a".repeat(31)).doesNotMatch(ShortCodeGenerator.ROUTE_PATTERN); // 31 chars, above maximum
+        assertThat("abc.de").doesNotMatch(ShortCodeGenerator.ROUTE_PATTERN); // '.' not allowed
+        assertThat("has space").doesNotMatch(ShortCodeGenerator.ROUTE_PATTERN);
+    }
 }

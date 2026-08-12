@@ -60,7 +60,9 @@ class UrlDetailsIntegrationTest {
 
     @Test
     void getUrlDetails_malformedShortCode_returns404() throws Exception {
-        mockMvc.perform(get("/api/urls/short")).andExpect(status().isNotFound());
+        // 3 chars — below the 4-char alias minimum (route widened for custom aliases; see
+        // docs/AI_WORKLOG.md, "Brownfield: add optional custom aliases").
+        mockMvc.perform(get("/api/urls/abc")).andExpect(status().isNotFound());
     }
 
     @Test

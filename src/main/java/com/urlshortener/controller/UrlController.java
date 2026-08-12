@@ -4,6 +4,7 @@ import com.urlshortener.dto.CreateUrlRequest;
 import com.urlshortener.dto.CreateUrlResponse;
 import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
+import com.urlshortener.service.ShortCodeGenerator;
 import com.urlshortener.service.UrlService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -22,8 +23,9 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 
 /**
- * Core URL-shortening management API — create and inspect. See docs/AI_WORKLOG.md and
- * docs/REQUIREMENTS.md for what's intentionally deferred (analytics, expiration, aliases,
+ * Core URL-shortening management API — create (with an optional custom alias — see
+ * docs/AI_WORKLOG.md, "Brownfield: add optional custom aliases") and inspect. See
+ * docs/REQUIREMENTS.md for what's intentionally still deferred (expiration, richer analytics,
  * update/delete, etc.). The public redirect entry point, {@code GET /{shortCode}}, is a
  * separate resource — see {@link RedirectController}.
  */
@@ -40,15 +42,19 @@ public class UrlController {
 
     @Operation(
             summary = "Create a shortened URL",
-            description = "Accepts a long http/https URL and returns a newly generated 7-character short code."
+            description = "Accepts a long http/https URL and an optional custom alias "
+                    + "(4-30 chars: letters, digits, hyphen, underscore). If no alias is "
+                    + "given, a random 7-character short code is generated — existing "
+                    + "clients that omit customAlias see no change in behavior."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Short URL created"),
-            @ApiResponse(responseCode = "400", description = "Invalid request body (missing/blank/malformed URL, or unsupported scheme)")
+            @ApiResponse(responseCode = "400", description = "Invalid request body (missing/blank/malformed URL, unsupported scheme, or invalid customAlias)"),
+            @ApiResponse(responseCode = "409", description = "customAlias is already in use")
     })
     @PostMapping
     public ResponseEntity<CreateUrlResponse> createShortUrl(@Valid @RequestBody CreateUrlRequest request) {
-        CreateUrlResponse response = urlService.createShortUrl(request.originalUrl());
+        CreateUrlResponse response = urlService.createShortUrl(request.originalUrl(), request.customAlias());
 
         // Location points at the GET /api/urls/{shortCode} resource, not the public redirect
         // entry point GET /{shortCode} — those are different resources with different
@@ -71,7 +77,7 @@ public class UrlController {
             @ApiResponse(responseCode = "200", description = "Short URL details"),
             @ApiResponse(responseCode = "404", description = "Unknown or malformed short code")
     })
-    @GetMapping("/{shortCode:[0-9a-zA-Z]{7}}")
+    @GetMapping("/{shortCode:" + ShortCodeGenerator.ROUTE_PATTERN + "}")
     public UrlDetailsResponse getUrlDetails(@PathVariable String shortCode) {
         return urlService.getUrlDetails(shortCode);
     }
@@ -87,7 +93,7 @@ public class UrlController {
             @ApiResponse(responseCode = "200", description = "Basic analytics for the short URL"),
             @ApiResponse(responseCode = "404", description = "Unknown or malformed short code")
     })
-    @GetMapping("/{shortCode:[0-9a-zA-Z]{7}}/analytics")
+    @GetMapping("/{shortCode:" + ShortCodeGenerator.ROUTE_PATTERN + "}/analytics")
     public UrlAnalyticsResponse getUrlAnalytics(@PathVariable String shortCode) {
         return urlService.getUrlAnalytics(shortCode);
     }

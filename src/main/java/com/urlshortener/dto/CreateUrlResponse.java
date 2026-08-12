@@ -14,7 +14,7 @@ public record CreateUrlResponse(
         @Schema(description = "The original long URL that was shortened")
         String originalUrl,
 
-        @Schema(description = "The generated 7-character Base62 short code", example = "aZ3kX9q")
+        @Schema(description = "The short code — a generated 7-character Base62 code, or the custom alias if one was supplied", example = "aZ3kX9q")
         String shortCode,
 
         @Schema(description = "The full short URL a client can use to redirect", example = "http://localhost:8080/aZ3kX9q")

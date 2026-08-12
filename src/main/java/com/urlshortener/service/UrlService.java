@@ -4,6 +4,7 @@ import com.urlshortener.dto.CreateUrlResponse;
 import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.entity.UrlMapping;
+import com.urlshortener.exception.ShortCodeAlreadyExistsException;
 import com.urlshortener.exception.ShortCodeGenerationException;
 import com.urlshortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.repository.UrlMappingRepository;
@@ -15,7 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Business logic for creating shortened URLs.
+ * Business logic for creating shortened URLs — either with a randomly generated code or a
+ * caller-supplied custom alias (see docs/AI_WORKLOG.md, "Brownfield: add optional custom
+ * aliases to POST /api/urls"). Both kinds of short code live in the same
+ * {@link UrlMapping#getShortCode()} column and are looked up identically by every other
+ * endpoint; only creation distinguishes them, and only in how a collision is handled.
  *
  * <p><b>Deliberately not {@code @Transactional}.</b> Each {@link UrlMappingRepository} call
  * (save/existsByShortCode) already runs in its own repository-managed transaction. If this
@@ -23,7 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
  * constraint violation from PostgreSQL would mark that whole transaction rollback-only ("current
  * transaction is aborted, commands ignored until end of transaction block"), breaking retry —
  * the second attempt would fail even with a fresh, non-colliding code. Letting each attempt use
- * its own transaction keeps a collision on attempt N from poisoning attempt N+1.
+ * its own transaction keeps a collision on attempt N from poisoning attempt N+1. The custom-alias
+ * path has no retry loop at all (see {@link #createWithCustomAlias}), so this concern doesn't
+ * apply there, but the method stays non-transactional uniformly rather than transactional for
+ * one branch and not the other.
  */
 @Service
 public class UrlService {
@@ -50,9 +58,21 @@ public class UrlService {
         this.baseUrl = baseUrl;
     }
 
-    public CreateUrlResponse createShortUrl(String originalUrl) {
+    /**
+     * @param customAlias caller-supplied short code, already validated by {@code @Pattern} on
+     *                    {@code CreateUrlRequest} (4-30 chars, {@code [0-9a-zA-Z_-]}); {@code
+     *                    null} means "not supplied" — generate a random code, the original,
+     *                    unmodified behavior. An empty/blank value can't reach here: Bean
+     *                    Validation on the request DTO already rejects it as malformed.
+     */
+    public CreateUrlResponse createShortUrl(String originalUrl, String customAlias) {
         String normalizedUrl = originalUrl.trim();
+        return (customAlias != null)
+                ? createWithCustomAlias(normalizedUrl, customAlias)
+                : createWithGeneratedCode(normalizedUrl);
+    }
 
+    private CreateUrlResponse createWithGeneratedCode(String normalizedUrl) {
         for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
             String candidate = shortCodeGenerator.generate();
 
@@ -68,13 +88,37 @@ public class UrlService {
             } catch (DataIntegrityViolationException raceLost) {
                 // Two requests generated the same code between our pre-check and the insert;
                 // the database's UNIQUE constraint is what actually caught it. Retry with a
-                // fresh code in a new attempt/transaction.
+                // fresh code in a new attempt/transaction — safe here because the code itself
+                // was ours to choose; see createWithCustomAlias for why that's NOT true there.
                 log.warn("Short code collision (unique constraint) on attempt {}/{}", attempt, MAX_GENERATION_ATTEMPTS);
             }
         }
 
         throw new ShortCodeGenerationException(
                 "Unable to generate a unique short code after " + MAX_GENERATION_ATTEMPTS + " attempts");
+    }
+
+    /**
+     * No retry loop, deliberately — unlike {@link #createWithGeneratedCode}. Retrying with a
+     * different code on collision would mean silently handing the caller a short URL other
+     * than the one they explicitly asked for, which defeats the point of a custom alias.
+     * Instead: a colliding alias is an ordinary client-facing conflict (409), full stop — the
+     * caller decides what to do next (pick another alias), not this service.
+     */
+    private CreateUrlResponse createWithCustomAlias(String normalizedUrl, String customAlias) {
+        // Fast pre-check to usually avoid a doomed insert; NOT the actual guarantee — see below.
+        if (repository.existsByShortCode(customAlias)) {
+            throw new ShortCodeAlreadyExistsException(customAlias);
+        }
+
+        try {
+            UrlMapping saved = repository.save(new UrlMapping(normalizedUrl, customAlias));
+            return toResponse(saved);
+        } catch (DataIntegrityViolationException raceLost) {
+            // Two requests raced on the same alias between our pre-check and the insert; the
+            // database's UNIQUE constraint is what actually caught it — same 409, not a retry.
+            throw new ShortCodeAlreadyExistsException(customAlias);
+        }
     }
 
     private CreateUrlResponse toResponse(UrlMapping mapping) {

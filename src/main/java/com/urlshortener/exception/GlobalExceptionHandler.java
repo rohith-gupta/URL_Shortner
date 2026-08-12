@@ -60,6 +60,14 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request.getRequestURI(), List.of()));
     }
 
+    @ExceptionHandler(ShortCodeAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleShortCodeAlreadyExists(ShortCodeAlreadyExistsException ex,
+                                                                        HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                Instant.now(), HttpStatus.CONFLICT.value(), "Conflict",
+                ex.getMessage(), request.getRequestURI(), List.of()));
+    }
+
     /**
      * Thrown by Spring's static-resource handling when a request path matches no controller
      * mapping at all — e.g. a malformed short code that doesn't satisfy

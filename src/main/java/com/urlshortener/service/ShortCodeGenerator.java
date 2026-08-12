@@ -18,6 +18,18 @@ public class ShortCodeGenerator {
     static final String ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     static final int CODE_LENGTH = 7;
 
+    /**
+     * Route-matching pattern shared by every {@code GET} endpoint that takes a short code path
+     * variable ({@code RedirectController}, and {@code UrlController}'s details/analytics
+     * routes) — one definition so the three routes can't drift apart. Deliberately broader
+     * than {@link #ALPHABET}/{@link #CODE_LENGTH} above, which describe only what <em>this
+     * class generates</em> (always exactly 7 alphanumeric characters); this pattern also has
+     * to accept custom aliases (4-30 characters, alphanumeric plus hyphen/underscore — see
+     * {@code dto/CreateUrlRequest}'s {@code customAlias} constraint, which must stay in sync
+     * with this).
+     */
+    public static final String ROUTE_PATTERN = "[0-9a-zA-Z_-]{4,30}";
+
     private final SecureRandom secureRandom = new SecureRandom();
 
     public String generate() {

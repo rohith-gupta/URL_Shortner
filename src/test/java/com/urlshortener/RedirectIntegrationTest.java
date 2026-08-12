@@ -52,9 +52,13 @@ class RedirectIntegrationTest {
 
     @Test
     void redirect_malformedShortCode_returns404() throws Exception {
-        mockMvc.perform(get("/short")).andExpect(status().isNotFound());
-        mockMvc.perform(get("/toolongcode123")).andExpect(status().isNotFound());
-        mockMvc.perform(get("/abc-123")).andExpect(status().isNotFound());
+        // Route accepts 4-30 chars of [0-9a-zA-Z_-] (widened for custom aliases — see
+        // docs/AI_WORKLOG.md, "Brownfield: add optional custom aliases"); these examples are
+        // still outside that range/charset, unlike the old "short"/"abc-123" examples which a
+        // valid alias could now legitimately look like.
+        mockMvc.perform(get("/abc")).andExpect(status().isNotFound()); // too short (< 4)
+        mockMvc.perform(get("/" + "a".repeat(31))).andExpect(status().isNotFound()); // too long (> 30)
+        mockMvc.perform(get("/abc.de")).andExpect(status().isNotFound()); // '.' not allowed
     }
 
     @Test

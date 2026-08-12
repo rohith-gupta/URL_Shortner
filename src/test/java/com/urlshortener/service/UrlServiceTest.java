@@ -4,6 +4,7 @@ import com.urlshortener.dto.CreateUrlResponse;
 import com.urlshortener.dto.UrlAnalyticsResponse;
 import com.urlshortener.dto.UrlDetailsResponse;
 import com.urlshortener.entity.UrlMapping;
+import com.urlshortener.exception.ShortCodeAlreadyExistsException;
 import com.urlshortener.exception.ShortCodeGenerationException;
 import com.urlshortener.exception.ShortCodeNotFoundException;
 import com.urlshortener.repository.UrlMappingRepository;
@@ -43,7 +44,7 @@ class UrlServiceTest {
         when(generator.generate()).thenReturn("abc1234");
         when(repository.existsByShortCode("abc1234")).thenReturn(false);
 
-        CreateUrlResponse response = service.createShortUrl("https://example.com");
+        CreateUrlResponse response = service.createShortUrl("https://example.com", null);
 
         assertThat(response.originalUrl()).isEqualTo("https://example.com");
         assertThat(response.shortCode()).isEqualTo("abc1234");
@@ -57,7 +58,7 @@ class UrlServiceTest {
         when(generator.generate()).thenReturn("abc1234");
         when(repository.existsByShortCode("abc1234")).thenReturn(false);
 
-        service.createShortUrl("  https://example.com  ");
+        service.createShortUrl("  https://example.com  ", null);
 
         ArgumentCaptor<UrlMapping> captor = ArgumentCaptor.forClass(UrlMapping.class);
         verify(repository).save(captor.capture());
@@ -70,7 +71,7 @@ class UrlServiceTest {
         when(repository.existsByShortCode("collide")).thenReturn(true);
         when(repository.existsByShortCode("fresh01")).thenReturn(false);
 
-        CreateUrlResponse response = service.createShortUrl("https://example.com");
+        CreateUrlResponse response = service.createShortUrl("https://example.com", null);
 
         assertThat(response.shortCode()).isEqualTo("fresh01");
         verify(generator, times(2)).generate();
@@ -90,7 +91,7 @@ class UrlServiceTest {
         when(repository.save(argThatShortCodeIs("afterRc")))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        CreateUrlResponse response = service.createShortUrl("https://example.com");
+        CreateUrlResponse response = service.createShortUrl("https://example.com", null);
 
         assertThat(response.shortCode()).isEqualTo("afterRc");
         verify(repository, times(2)).save(any(UrlMapping.class));
@@ -101,7 +102,7 @@ class UrlServiceTest {
         when(generator.generate()).thenReturn("aaaaaaa");
         when(repository.existsByShortCode("aaaaaaa")).thenReturn(true); // always collides
 
-        assertThatThrownBy(() -> service.createShortUrl("https://example.com"))
+        assertThatThrownBy(() -> service.createShortUrl("https://example.com", null))
                 .isInstanceOf(ShortCodeGenerationException.class);
 
         // Bounded: exactly 5 attempts, not unbounded looping.
@@ -111,6 +112,48 @@ class UrlServiceTest {
 
     private static UrlMapping argThatShortCodeIs(String shortCode) {
         return org.mockito.ArgumentMatchers.argThat(m -> m != null && shortCode.equals(m.getShortCode()));
+    }
+
+    // --- createShortUrl with customAlias (brownfield enhancement — see docs/AI_WORKLOG.md,
+    // "Brownfield: add optional custom aliases to POST /api/urls") ---
+
+    @Test
+    void createShortUrl_withCustomAlias_usesAliasVerbatim_neverGeneratesRandomCode() {
+        when(repository.existsByShortCode("products")).thenReturn(false);
+
+        CreateUrlResponse response = service.createShortUrl("https://example.com/products", "products");
+
+        assertThat(response.shortCode()).isEqualTo("products");
+        assertThat(response.shortUrl()).isEqualTo("http://localhost:8080/products");
+        verify(generator, never()).generate();
+        verify(repository, times(1)).save(argThatShortCodeIs("products"));
+    }
+
+    @Test
+    void createShortUrl_customAliasAlreadyExists_throwsConflict_doesNotRetryWithRandomCode() {
+        when(repository.existsByShortCode("products")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createShortUrl("https://example.com/products", "products"))
+                .isInstanceOf(ShortCodeAlreadyExistsException.class);
+
+        // Must not silently fall back to a generated code — the caller asked for this exact alias.
+        verify(generator, never()).generate();
+        verify(repository, never()).save(any(UrlMapping.class));
+    }
+
+    @Test
+    void createShortUrl_customAliasRaceLostToDatabase_throwsConflict_doesNotRetry() {
+        // Pre-check passes (simulating a race lost between check and insert); the database's
+        // UNIQUE constraint is what actually catches it.
+        when(repository.existsByShortCode("products")).thenReturn(false);
+        when(repository.save(argThatShortCodeIs("products")))
+                .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+
+        assertThatThrownBy(() -> service.createShortUrl("https://example.com/products", "products"))
+                .isInstanceOf(ShortCodeAlreadyExistsException.class);
+
+        // Exactly one attempt — unlike the generated-code path, a colliding alias is never retried.
+        verify(repository, times(1)).save(any(UrlMapping.class));
     }
 
     // --- resolveAndRecordRedirect ---

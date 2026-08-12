@@ -1,5 +1,6 @@
 package com.urlshortener.controller;
 
+import com.urlshortener.service.ShortCodeGenerator;
 import com.urlshortener.service.UrlService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -30,16 +31,17 @@ public class RedirectController {
 
     @Operation(
             summary = "Redirect to the original URL",
-            description = "Resolves a 7-character Base62 short code and redirects (302) to the "
-                    + "original URL, incrementing its click count. 302 (not 301) is used "
-                    + "deliberately, so browsers/proxies don't cache the redirect and bypass "
-                    + "this service — and its click counting — on subsequent visits."
+            description = "Resolves a short code — a generated 7-character Base62 code or a "
+                    + "custom alias — and redirects (302) to the original URL, incrementing "
+                    + "its click count. 302 (not 301) is used deliberately, so browsers/proxies "
+                    + "don't cache the redirect and bypass this service — and its click "
+                    + "counting — on subsequent visits."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "302", description = "Redirect to the original URL"),
             @ApiResponse(responseCode = "404", description = "Unknown or malformed short code")
     })
-    @GetMapping("/{shortCode:[0-9a-zA-Z]{7}}")
+    @GetMapping("/{shortCode:" + ShortCodeGenerator.ROUTE_PATTERN + "}")
     public ResponseEntity<Void> redirect(@PathVariable String shortCode) {
         String originalUrl = urlService.resolveAndRecordRedirect(shortCode);
         return ResponseEntity.status(HttpStatus.FOUND)

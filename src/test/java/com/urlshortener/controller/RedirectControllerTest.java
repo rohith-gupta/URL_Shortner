@@ -45,21 +45,27 @@ class RedirectControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    // Route accepts 4-30 chars of [0-9a-zA-Z_-] (widened for custom aliases — see
+    // docs/AI_WORKLOG.md, "Brownfield: add optional custom aliases"). These examples are
+    // chosen to still be genuinely outside that range/charset, not just outside the old
+    // fixed-7 rule — "short" (5 chars) and "abc-123" (contains a now-valid hyphen) used to be
+    // malformed examples here but no longer are.
+
     @Test
     void redirect_shortCodeTooShort_doesNotMatchRoute_returns404() throws Exception {
-        mockMvc.perform(get("/short"))
+        mockMvc.perform(get("/abc")) // 3 chars, below the 4-character minimum
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void redirect_shortCodeTooLong_doesNotMatchRoute_returns404() throws Exception {
-        mockMvc.perform(get("/toolongcode123"))
+        mockMvc.perform(get("/" + "a".repeat(31))) // above the 30-character maximum
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void redirect_shortCodeWithInvalidCharacter_doesNotMatchRoute_returns404() throws Exception {
-        mockMvc.perform(get("/abc-123"))
+        mockMvc.perform(get("/abc.de")) // '.' is not in [0-9a-zA-Z_-]
                 .andExpect(status().isNotFound());
     }
 }
