@@ -22,6 +22,8 @@ target/
 !README.md
 !docs/REQUIREMENTS.md
 !docs/AI_WORKLOG.md
+!docs/
+!docs/*.md
 
 ### NetBeans ###
 /nbproject/private/
