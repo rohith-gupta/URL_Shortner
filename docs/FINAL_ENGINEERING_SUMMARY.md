@@ -2,17 +2,21 @@
 
 Concise, interviewer-facing summary of what was built and how. Full detail, options
 considered, and every AI-assisted decision with its rationale live in
-[`CLAUDE.md`](../CLAUDE.md) (architecture/conventions) and
-[`docs/AI_WORKLOG.md`](AI_WORKLOG.md) (chronological traceability log) — this document
-synthesizes them rather than duplicating them.
+[`docs/AI_WORKLOG.md`](AI_WORKLOG.md) (chronological traceability log) and
+[`docs/REQUIREMENTS.md`](REQUIREMENTS.md) (normalized requirements and acceptance criteria) —
+this document synthesizes both rather than duplicating them. (`CLAUDE.md`, the day-to-day
+AI-agent-facing operating instructions and most granular architecture detail, is maintained
+locally but deliberately not included in this repository — see "Documentation scope" under
+Assumptions and limitations.)
 
 ## Project objective
 
 Not just a working URL shortener, but a demonstration of an AI-assisted software engineering
 *process*: requirement understanding, task decomposition, disciplined AI-assisted execution,
 quality gates, and full traceability — across a greenfield build, a brownfield change, a
-deliberately ambiguous requirement, a test-improvement pass, and a documentation-improvement
-pass. Development approach throughout: engineer-led execution accelerated by AI, not autonomous
+well-defined requirement, a deliberately ambiguous requirement, a test-improvement pass, and a
+documentation-improvement pass. Development approach throughout: engineer-led execution
+accelerated by AI, not autonomous
 orchestration — the engineer reviewed and approved every architectural decision and every
 scenario before implementation began.
 
@@ -68,6 +72,24 @@ decision — expired short codes return `404`, identical in shape to an unknown 
 can never tell "never existed" from "existed but expired." A new `V3` migration; zero
 retroactive expiry of the 6 pre-existing rows in the validation database; no physical deletion,
 ever.
+
+## Well-defined requirement scenario
+
+`POST /api/urls` — the original create-endpoint slice — is formally designated as this
+project's demonstration of a well-defined requirement handled end-to-end, the deliberate
+counterpart to the ambiguous-requirement scenario above. Its original engineer specification
+left nothing open to interpretation: exact entity fields and constraints, the migration, the
+already-approved short-code strategy, precise request-validation rules, a specified minimum
+test list, explicit exclusions (redirect, details, analytics, auth, expiration, aliases,
+caching, rate limiting), and a required real-PostgreSQL validation pass — all stated up front,
+with zero clarification questions needed before implementation could begin. It was decomposed
+into eight independently verifiable units (persistence layer, short-code generation,
+request/response contracts, business logic, HTTP layer, error handling, API documentation,
+verification), implemented exactly to that specification, tested at every layer, and validated
+end to end against real PostgreSQL (Flyway migration applied, a real HTTP request persisted and
+read back via `psql`, error cases and health/OpenAPI endpoints all confirmed). Full task
+decomposition, acceptance criteria, and validation record: `docs/AI_WORKLOG.md`, "Close FR-9
+(well-defined requirement scenario)."
 
 ## Test-improvement and documentation-improvement scenarios
 
@@ -143,17 +165,27 @@ implemented without an explicit engineer decision in `docs/AI_WORKLOG.md`.
 - **Expired codes return `404`, not `410`** — trades a slightly less semantically precise status
   code for closing an enumeration side-channel (a caller can't distinguish "never existed" from
   "existed but expired").
-- **`.gitignore`'s blanket `*.md` rule** — the single largest realized risk in this project's
-  process, not just a documented candidate one: it silently kept every documentation file
-  (including this one) out of git for most of the project's history. Partially fixed (`README.md`
-  is now tracked); `CLAUDE.md` and everything under `docs/` — including this file — remain
-  git-ignored as of this writing. See Limitations below; this is the one item that could
-  materially affect whether a reviewer cloning the repo sees this document at all.
+- **`.gitignore`'s blanket `*.md` rule initially hid every documentation file from git** — a
+  realized risk during this project's history, not just a theoretical one: it silently kept
+  every documentation file out of git for most of the project's history before being caught.
+  Now resolved by explicit engineer decision: `README.md`, `docs/REQUIREMENTS.md`,
+  `docs/AI_WORKLOG.md`, and this file are all tracked and committed. `CLAUDE.md` remains
+  excluded — a deliberate scope decision made *after* this trade-off was explicitly surfaced
+  and considered, not an oversight. See "Documentation scope" below.
 
 ## Assumptions and limitations
 
-**Explicitly out of scope, not silently missing** (see `CLAUDE.md`'s Security/Reliability
-sections for the full narrative):
+**Documentation scope**: this repository intentionally does not include `CLAUDE.md`. That file
+is maintained locally as Claude Code's own operating instructions plus the most granular
+architecture/convention detail (coding conventions, field-by-field API/schema spec,
+package-by-package rationale); by explicit engineer decision — made after the trade-off above
+was surfaced — it stays a local working document rather than a submitted artifact. Everything
+an interviewer needs to evaluate this submission (architecture overview, decisions and
+rationale, scenario evidence, testing approach, risks, limitations) is in this document,
+`README.md`, `docs/REQUIREMENTS.md`, and `docs/AI_WORKLOG.md` — all of which **are** committed
+and visible in a fresh clone.
+
+**Explicitly out of scope, not silently missing**:
 - No authentication/authorization — any caller can create or read any short URL.
 - No SSRF/private-network protection — `http`/`https` scheme validation is the entire extent of
   URL validation; `http://localhost/...` or link-local/metadata-endpoint targets are accepted.
@@ -166,19 +198,21 @@ sections for the full narrative):
 - No lint/static-analysis tool is wired in yet.
 
 **Genuinely unresolved, not a scope decision**:
-- The `.gitignore` issue above — needs an explicit engineer decision on how to handle it.
-- FR-9 (a dedicated, explicitly-labeled "well-defined requirement" scenario) has no standalone
-  artifact of its own; every other scenario in this project (all 4 greenfield endpoints, the
-  brownfield alias work) *was* engineer-specified in full, unambiguous detail up front and
-  executed as such, but none was formally called out as *the* FR-9 demonstration.
 - Whether a Testcontainers-based PostgreSQL integration test is needed alongside the current
   H2-based automated suite remains an open, deferred decision.
+- Reliability/security mechanisms beyond what's implemented (rate limiting, caching,
+  idempotency, authN/authZ, SSRF protection) remain unselected — never required to be resolved,
+  only transparently tracked as candidates pending a future options-and-rationale review.
 
 ## Final implementation status
 
 All 4 approved API endpoints implemented and validated end-to-end against real PostgreSQL.
-Required scenarios complete: greenfield, brownfield (FR-6), ambiguous-requirement (FR-10),
-test-improvement (FR-7), documentation-improvement (FR-8). 155 automated tests passing,
-`./mvnw clean package` green. Remaining, genuinely open items: FR-9's standalone labeling, the
-`.gitignore` documentation-visibility issue, and the reliability/security mechanisms named above
-as explicitly deferred pending a future options-and-rationale review.
+**All required scenarios complete**: greenfield, brownfield (FR-6), well-defined requirement
+(FR-9), ambiguous-requirement (FR-10), test-improvement (FR-7), documentation-improvement
+(FR-8) — every functional requirement, FR-1 through FR-10, is now implemented and validated.
+155 automated tests passing, `./mvnw clean package` green. Documentation visibility resolved:
+`README.md`, `docs/REQUIREMENTS.md`, `docs/AI_WORKLOG.md`, and this file are committed and
+visible in a fresh clone; `CLAUDE.md` is deliberately kept local-only (see "Documentation
+scope" above). Remaining, genuinely open items are all non-blocking, explicitly-deferred
+candidates rather than incomplete requirements: the Testcontainers question and unselected
+reliability/security mechanisms named above.

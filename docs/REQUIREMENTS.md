@@ -1,9 +1,12 @@
 # Requirements — AI-Assisted Software Engineering System: URL Shortener
 
-Status: **Draft — normalized from assignment brief.** Backend technology stack (§6 item 1,
-partial), initial API scope (§6 item 2), database engine (§6 item 10), short-code generation
-strategy (§6 item 5), and schema management/Flyway (§6 item 18) are engineer-approved; all
-other open items remain unreviewed. **All 4 approved API endpoints are implemented and
+Status: **All 10 functional requirements (FR-1–FR-10) implemented and validated; all required
+assignment scenarios complete.** Backend technology stack (§6 item 1, partial datastore-only),
+initial API scope (§6 item 2), database engine (§6 item 10), short-code generation strategy
+(§6 item 5), and schema management/Flyway (§6 item 18) are engineer-approved. Remaining open
+items in §6 are reliability/security/process items the brief left genuinely open-ended (never
+required to be closed, only transparently tracked) — see §6 for the full, itemized list.
+**All 4 approved API endpoints are implemented and
 validated end-to-end against real PostgreSQL** — `POST /api/urls`, `GET /{shortCode}`,
 `GET /api/urls/{shortCode}`, and `GET /api/urls/{shortCode}/analytics` — completing the
 initial greenfield API surface. **The assignment's required brownfield scenario (FR-6) is
@@ -25,11 +28,18 @@ now complete**: a human-facing `README.md` was added after a gap analysis from a
 interviewer's perspective. **A submission-readiness audit (2026-08-12) mapped every assignment
 requirement/deliverable to project evidence and produced
 [`docs/FINAL_ENGINEERING_SUMMARY.md`](FINAL_ENGINEERING_SUMMARY.md)** — see that document for
-the concise, interviewer-facing synthesis, and §6 item 19 for the one genuine, still-open gap
-that audit surfaced (most documentation, including this file, remains invisible to git).
-Remaining project work: formally labeling a well-defined-requirement scenario (FR-9),
-resolving the `.gitignore` issue, plus whatever reliability/security items get selected from
-§6.
+the concise, interviewer-facing synthesis. The audit's one genuine documentation-visibility
+finding is now resolved (§6 item 19): `README.md` and everything under `docs/` are tracked and
+committed; `CLAUDE.md` is deliberately kept as a local-only working document, by explicit
+engineer decision, with every submitted document's cross-references updated accordingly.
+**The assignment's required well-defined-requirement scenario (FR-9) is also now complete**:
+`POST /api/urls`'s original, fully-specified engineer requirement (zero clarification questions
+needed, the direct contrast to FR-10) is formally designated as the demonstration, with task
+decomposition, acceptance criteria, tests, and real-PostgreSQL validation all documented in
+`docs/AI_WORKLOG.md`. **All ten functional requirements (FR-1 through FR-10) are now
+implemented and validated** — remaining project work is limited to whatever reliability/
+security items get selected from §6, which were never required to be resolved, only
+transparently tracked.
 Last updated: 2026-08-12
 
 This document normalizes the source-of-truth assignment brief into engineering-tractable
@@ -38,7 +48,9 @@ ambiguous, the item is listed under **Open Questions / Ambiguities** rather than
 
 Traceability of how these requirements are acted on (AI-assisted or otherwise) is recorded in
 [docs/AI_WORKLOG.md](./AI_WORKLOG.md). Architecture/stack decisions derived from this document
-belong in [CLAUDE.md](../CLAUDE.md) once made.
+belong in `CLAUDE.md` once made — a living document maintained locally, not part of this git
+repository (see §6 item 19); the interviewer-facing synthesis of those decisions is
+[docs/FINAL_ENGINEERING_SUMMARY.md](./FINAL_ENGINEERING_SUMMARY.md).
 
 ---
 
@@ -53,8 +65,8 @@ belong in [CLAUDE.md](../CLAUDE.md) once made.
 | FR-5 | The project must include a greenfield development scenario (new feature/service built from scratch). | SCENARIO | **Complete for the initial API surface** — all 4 approved endpoints (`POST /api/urls`, `GET /{shortCode}`, `GET /api/urls/{shortCode}`, `GET /api/urls/{shortCode}/analytics`) implemented and validated 2026-08-12 |
 | FR-6 | The project must include a brownfield scenario: enhancement, refactor, or bug fix against existing code. | SCENARIO | **Implemented & validated** 2026-08-12 — optional custom aliases added to `POST /api/urls`; full impact analysis recorded before implementation (`docs/AI_WORKLOG.md`); real schema migration (`V2`) applied to the pre-existing database; all pre-existing endpoints/tests confirmed unaffected |
 | FR-7 | The project must include a test-improvement scenario (adding/strengthening tests on existing functionality). | SCENARIO | **Implemented & validated** 2026-08-12 — gap analysis identified 3 meaningful coverage gaps in existing functionality (recorded in `docs/AI_WORKLOG.md` before any test was written); engineer approved one (real-concurrency test proving the custom-alias collision guarantee under genuine concurrent writes, not just a mocked race); implemented as `UrlAliasCollisionConcurrencyTest`, validated with repeated runs to rule out flakiness (4/4 green) plus a full-suite regression pass (155/155). No production code changed. |
-| FR-8 | The project must include a documentation-improvement scenario. | SCENARIO | **Implemented** 2026-08-12 — gap analysis identified 3 meaningful documentation gaps from an interviewer's perspective (recorded in `docs/AI_WORKLOG.md` before anything was written); engineer approved one (a human-facing `README.md`, since none existed); implemented, cross-checked against `docker-compose.yml`/`CLAUDE.md` for accuracy. **Caveat**: the new `README.md` is itself caught by the still-unresolved `.gitignore` `*.md` issue (§6 item 19) — written and correct on disk, not yet visible via git. |
-| FR-9 | The project must include at least one well-defined requirement handled end-to-end. | SCENARIO | Not started |
+| FR-8 | The project must include a documentation-improvement scenario. | SCENARIO | **Implemented & validated** 2026-08-12 — gap analysis identified 3 meaningful documentation gaps from an interviewer's perspective (recorded in `docs/AI_WORKLOG.md` before anything was written); engineer approved one (a human-facing `README.md`, since none existed); implemented, cross-checked against `docker-compose.yml` for accuracy. `README.md` is tracked and committed (see §6 item 19). |
+| FR-9 | The project must include at least one well-defined requirement handled end-to-end. | SCENARIO | **Implemented & validated** 2026-08-12 — `POST /api/urls` formally designated as the demonstration: the original engineer specification (entity fields/constraints, migration, short-code strategy, DTO validation rules, layering, test list, explicit exclusions) left nothing ambiguous or open to interpretation, in deliberate contrast to FR-10. Decomposed into 8 sequenced units, implemented exactly to spec, tested (part of the 155-test suite), and validated end-to-end against real PostgreSQL. See `docs/AI_WORKLOG.md`, "Close FR-9 (well-defined requirement scenario)". |
 | FR-10 | The project must include at least one ambiguous requirement, with the ambiguity explicitly identified and resolved/normalized before implementation. | SCENARIO | **Implemented & validated** 2026-08-12 — stakeholder statement "Shortened URLs should expire" analyzed for ambiguity *before* any code/schema change (10 clarification questions, 3 options, all recorded in `docs/AI_WORKLOG.md`); engineer resolved all 10 with explicit business rules; only then implemented: optional `expiresAt` on `POST /api/urls`, lazy request-time enforcement via a centralized `UrlMapping.isExpired`/`UrlService.findActiveMapping`, `404` (not `410`) for expired codes — indistinguishable from unknown codes by design — new `V3` migration, no scheduled jobs. Validated end-to-end against real PostgreSQL, including pre-existing rows confirmed unaffected (`expires_at = NULL`, no retroactive expiry). |
 
 ## 2. Non-Functional Requirements (NFR)
@@ -102,26 +114,27 @@ every session on this project.
 
 Per **FINAL DELIVERABLES** in the brief:
 
-- [x] Runnable end-to-end prototype — validated repeatedly against real PostgreSQL via Docker Compose (see `docs/AI_WORKLOG.md` validation notes on every scenario); **caveat**: only reproducible by someone with this exact local checkout right now, see §6 item 19
-- [x] Architecture overview (components, tools, execution approach, control flow, key architectural decisions) — `CLAUDE.md`'s "Architecture / Tech stack", "API design", and "Database / schema design" sections; synthesized for a first-time reader in `docs/FINAL_ENGINEERING_SUMMARY.md`
+- [x] Runnable end-to-end prototype — validated repeatedly against real PostgreSQL via Docker Compose (see `docs/AI_WORKLOG.md` validation notes on every scenario); reproducible from a fresh clone via `README.md`'s quickstart
+- [x] Architecture overview (components, tools, execution approach, control flow, key architectural decisions) — `docs/FINAL_ENGINEERING_SUMMARY.md`'s "Architecture and technology decisions" section (the fuller, field-by-field detail behind it lives in the locally-maintained `CLAUDE.md`, not included in this repository — see §6 item 19)
 - [x] Greenfield scenario (artifact/evidence) — 4 vertical slices, `POST /api/urls` through `GET /api/urls/{shortCode}/analytics`, each with its own `docs/AI_WORKLOG.md` entry and real-PostgreSQL validation
 - [x] Brownfield scenario (artifact/evidence) — optional custom aliases on `POST /api/urls`; impact analysis recorded *before* implementation, real `V2` schema migration applied to the pre-existing database, all pre-existing tests/endpoints confirmed unaffected (`docs/AI_WORKLOG.md`)
 - [x] Ambiguous-requirement scenario (artifact/evidence) — "Shortened URLs should expire," analyzed for ambiguity *before* any code (10 clarification questions, no code/schema change) then implemented only after the engineer resolved all 10 with explicit business rules (`docs/AI_WORKLOG.md`)
-- [x] Setup instructions — `README.md` quickstart (Docker Compose + `mvnw`, plus a `curl` walkthrough); `README.md` itself is now tracked in git (fixed since first written — see §6 item 19), but the deeper docs it links to (`CLAUDE.md`, `docs/REQUIREMENTS.md`, `docs/AI_WORKLOG.md`, this file's own directory) are still git-ignored
-- [x] Testing approach (documented) — `CLAUDE.md`'s "Testing strategy" section; summarized in `docs/FINAL_ENGINEERING_SUMMARY.md`
-- [x] Limitations (documented) — `CLAUDE.md`'s "Security approach"/"Reliability approach" sections document them piecemeal as each arose; gathered in one place in `docs/FINAL_ENGINEERING_SUMMARY.md`
-- [x] Trade-offs (documented) — scattered across individual `docs/AI_WORKLOG.md` decision entries; gathered in one place in `docs/FINAL_ENGINEERING_SUMMARY.md`
-- [x] API/schema definitions — all 4 approved endpoints documented (OpenAPI/Swagger + `CLAUDE.md`): `POST /api/urls` (incl. optional `customAlias`), `GET /{shortCode}`, `GET /api/urls/{shortCode}`, `GET /api/urls/{shortCode}/analytics`
-- [x] Unit tests — 155 tests total across generator/validator/entity/service/repository (see `CLAUDE.md` Testing strategy for the full breakdown)
+- [x] Well-defined-requirement scenario (artifact/evidence) — `POST /api/urls`, formally designated as the demonstration: a complete, unambiguous engineer specification handled end-to-end with zero clarification questions needed, decomposed/implemented/tested/validated against real PostgreSQL (`docs/AI_WORKLOG.md`)
+- [x] Setup instructions — `README.md` quickstart (Docker Compose + `mvnw`, plus a `curl` walkthrough); `README.md` is tracked and committed, along with everything under `docs/` (see §6 item 19 for the one file, `CLAUDE.md`, deliberately kept out of git)
+- [x] Testing approach (documented) — `docs/FINAL_ENGINEERING_SUMMARY.md`'s "Validation and quality gates" section (fuller per-layer detail in the locally-maintained `CLAUDE.md`)
+- [x] Limitations (documented) — `docs/FINAL_ENGINEERING_SUMMARY.md`'s "Assumptions and limitations" section, gathered in one place
+- [x] Trade-offs (documented) — `docs/FINAL_ENGINEERING_SUMMARY.md`'s "Risks and trade-offs" section, gathered in one place (source material scattered across individual `docs/AI_WORKLOG.md` decision entries)
+- [x] API/schema definitions — all 4 approved endpoints documented via OpenAPI/Swagger (live at `/v3/api-docs`, `/swagger-ui/index.html`): `POST /api/urls` (incl. optional `customAlias`), `GET /{shortCode}`, `GET /api/urls/{shortCode}`, `GET /api/urls/{shortCode}/analytics`
+- [x] Unit tests — 155 tests total across generator/validator/entity/service/repository (see `docs/FINAL_ENGINEERING_SUMMARY.md`'s "Validation and quality gates" for the summary)
 - [x] Integration tests — `@DataJpaTest`, `@WebMvcTest`, and full-stack `@SpringBootTest` suites for all 4 endpoints (including custom-alias and expiration behavior), plus two real-concurrency tests (click-count increment, custom-alias collision)
-- [x] Supporting documentation — OpenAPI/Swagger UI, `README.md`, `CLAUDE.md`, this file
-- [x] Final Engineering Summary — [`docs/FINAL_ENGINEERING_SUMMARY.md`](FINAL_ENGINEERING_SUMMARY.md); **caveat**: currently git-ignored along with the rest of `docs/`, see §6 item 19
+- [x] Supporting documentation — OpenAPI/Swagger UI, `README.md`, `docs/FINAL_ENGINEERING_SUMMARY.md`, this file
+- [x] Final Engineering Summary — [`docs/FINAL_ENGINEERING_SUMMARY.md`](FINAL_ENGINEERING_SUMMARY.md), tracked and committed
 
 Plus the process artifacts required explicitly by name:
 
-- [x] `CLAUDE.md` (created 2026-08-12, living document)
-- [x] `docs/REQUIREMENTS.md` (this file)
-- [x] `docs/AI_WORKLOG.md` (created 2026-08-12, traceability log)
+- [x] `CLAUDE.md` (created 2026-08-12, living document) — maintained throughout the project and kept current with every architecture-affecting change; **by explicit engineer decision, not included in the git repository as submitted** — see §6 item 19 for the rationale and what's included in its place
+- [x] `docs/REQUIREMENTS.md` (this file) — tracked and committed
+- [x] `docs/AI_WORKLOG.md` (created 2026-08-12, traceability log) — tracked and committed
 
 ## 5. Acceptance Criteria
 
@@ -137,6 +150,7 @@ Plus the process artifacts required explicitly by name:
 | CLAUDE.md currency (PR-18) | No PR/change lands that alters architecture, stack, structure, commands, API/schema, conventions, testing, security/reliability approach, or key assumptions without a corresponding `CLAUDE.md` update in the same change. |
 | Quality gates (PR-7, NFR-3) | Each change lists which of analysis/lint/tests/security/performance were run and their results (pass, or documented known-failure with rationale) — never silently skipped. |
 | Ambiguity handling (FR-10) | **Met.** "Shortened URLs should expire" shown going from ambiguous (10 clarification questions, 3 options, zero code/schema changes) → explicit engineer normalization (10 documented business-rule decisions with rationale) → implementation (optional `expiresAt`, lazy enforcement, `404` semantics, new `V3` migration), validated end-to-end against real PostgreSQL — full record in `docs/AI_WORKLOG.md`. |
+| Well-defined requirement (FR-9) | **Met.** `POST /api/urls` shown as the direct contrast to FR-10: a complete, unambiguous specification handled end-to-end (task decomposition, acceptance criteria, implementation, tests, real-PostgreSQL validation) with zero clarification questions required before implementation — full record in `docs/AI_WORKLOG.md`. |
 | Final Engineering Summary | A single document exists covering plan/rationale, artifacts, risks, trade-offs, validation, assumptions, and limitations, consistent with the rest of the docs. |
 
 ## 6. Open Questions / Ambiguities
@@ -149,7 +163,7 @@ RESOLVED** are kept here for audit trail; the full options considered, AI recomm
 engineer rationale live in `docs/AI_WORKLOG.md`.
 
 1. **Technology stack — PARTIALLY RESOLVED (2026-08-12).** Language, runtime, framework, and build tool are approved: **Java 21 + Spring Boot** (Spring Web, Spring Data JPA, Spring Boot Validation, Spring Boot Test, Spring Boot Actuator), **Maven**. See `docs/AI_WORKLOG.md` entry "Decision: Backend technology stack" for the three options compared, the AI recommendation, and the engineer's rationale for choosing differently. **The datastore is explicitly not approved** and remains open — tracked as item 10 below.
-2. **"Core APIs" scope — RESOLVED (2026-08-12); 3 of 4 endpoints implemented (2026-08-12).** Initial scope approved as Option B (Core + Analytics): create (`POST /api/urls` — **implemented & validated**), redirect (`GET /{shortCode}` — **implemented & validated**), retrieve details (`GET /api/urls/{shortCode}` — **implemented & validated**, read-only, deliberately excludes `clickCount`), retrieve analytics (`GET /api/urls/{shortCode}/analytics` — not started). Custom aliases, update, delete, and listing are explicitly deferred (see items 6–7 below and `docs/AI_WORKLOG.md` entry "Decision: Core API scope"). Exact request/response schema for the one remaining endpoint is still open.
+2. **"Core APIs" scope — RESOLVED (2026-08-12); all 4 endpoints implemented (2026-08-12).** Initial scope approved as Option B (Core + Analytics): create (`POST /api/urls` — **implemented & validated**), redirect (`GET /{shortCode}` — **implemented & validated**), retrieve details (`GET /api/urls/{shortCode}` — **implemented & validated**, read-only, deliberately excludes `clickCount`), retrieve analytics (`GET /api/urls/{shortCode}/analytics` — **implemented & validated**, read-only, `clickCount` only). Custom aliases, update, delete, and listing are explicitly deferred (see items 6–7 below and `docs/AI_WORKLOG.md` entry "Decision: Core API scope").
 3. **Analytics scope — RESOLVED (2026-08-12); implemented & validated (2026-08-12).** Basic scope approved and now built: `clickCount` (plus `shortCode`/`shortUrl`/`originalUrl`/`createdAt`) via `GET /api/urls/{shortCode}/analytics`, confirmed end-to-end against real PostgreSQL. Richer signals (referrer, geography, device/user-agent, unique vs. total clicks) remain explicitly deferred as a brownfield/ambiguous-requirement candidate — deliberately not started, not a gap.
 4. **"Reliability features" scope — PARTIALLY RESOLVED.** Two mechanisms implemented as natural consequences of other work (not a full options review of the category): short-code collision handling (bounded retry against the `UNIQUE` constraint) and atomic click-count increment (single `UPDATE ... SET x = x + 1`, concurrency-tested against 20 real threads — see `docs/AI_WORKLOG.md`, "Implement GET /{shortCode}"). Remaining candidates not yet evaluated: rate limiting, caching, retry/backoff for external calls, graceful degradation.
 5. **Short-code generation strategy — RESOLVED (2026-08-12).** Random 7-character Base62 code (`0-9a-zA-Z`) generated with `java.security.SecureRandom`; `UNIQUE` constraint on the short-code column in PostgreSQL; on collision, regenerate and retry with a small, bounded retry count. An AI-recommended alternative (Base62 encoding of an auto-incrementing ID) was explicitly rejected as predictable/enumerable — see `docs/AI_WORKLOG.md` entry "Decision: Short-code generation strategy" for the full AI-recommendation-vs-engineer-decision record.
@@ -160,13 +174,13 @@ engineer rationale live in `docs/AI_WORKLOG.md`.
 10. **Persistence model / database engine — RESOLVED (2026-08-12), connectivity verified (2026-08-12).** PostgreSQL is the primary runtime datastore, run locally via Docker Compose (`docker-compose.yml`, PostgreSQL 17, host port **5433** — remapped from the default 5432 due to a pre-existing native Postgres service on the dev machine; see `docs/AI_WORKLOG.md` entry "Verify PostgreSQL runtime configuration end-to-end"). H2 is used only for lightweight automated tests (`src/test/resources/application.yml`). See `docs/AI_WORKLOG.md` entry "Decision: Database technology". **Still open**: whether a PostgreSQL Testcontainers-based integration test is also needed (deferred by the engineer) — see also item 18 (schema/migration strategy).
 11. **Deployment target** — brief requires a "runnable end-to-end prototype" but does not specify local-only, containerized, or cloud-deployed. Assumed local-runnable-by-default unless stated otherwise; to be confirmed.
 12. **Brownfield baseline — RESOLVED (2026-08-12).** Confirmed by the engineer's own instruction to proceed: the brownfield scenario (FR-6) was enacted on `POST /api/urls`, the greenfield code produced earlier in this same project — greenfield-then-brownfield sequencing within the assignment, not a pre-existing external codebase. See `docs/AI_WORKLOG.md`, "Brownfield: add optional custom aliases to POST /api/urls".
-13. **Well-defined vs. ambiguous requirement scenarios (FR-9, FR-10) — PARTIALLY RESOLVED (2026-08-12).** FR-10 (ambiguous) is now satisfied by a purpose-built, clearly-labeled scenario: "Shortened URLs should expire," analyzed and resolved per items above. Whether FR-9 (well-defined requirement) needs its own similarly purpose-built scenario, or whether it's sufficient to point at an already-completed slice with an unambiguous spec (e.g., the brownfield custom-alias work, or any of the four core endpoints, all of which were engineer-specified in full detail up front) remains open — still needs confirmation.
+13. **Well-defined vs. ambiguous requirement scenarios (FR-9, FR-10) — RESOLVED (2026-08-12).** FR-10 (ambiguous) is satisfied by a purpose-built, clearly-labeled scenario: "Shortened URLs should expire," analyzed and resolved per items above. FR-9 (well-defined requirement) is satisfied by formally designating the already-completed `POST /api/urls` create-endpoint slice as the demonstration — its original engineer specification was complete and unambiguous up front, requiring zero clarification questions before implementation, the direct contrast to FR-10. See `docs/AI_WORKLOG.md`, "Close FR-9 (well-defined requirement scenario): formalize POST /api/urls as the demonstration."
 14. **"High-impact change" definition (PR-8)** — no threshold given for what qualifies as high-impact (e.g., schema changes, public API contract changes, security-relevant changes, deletions). Needs an explicit working definition so approval gating is applied consistently.
 15. **Quantitative NFR targets** — no numeric SLAs/SLOs given for performance (latency, throughput) or reliability (uptime, error budget). If quantified targets are wanted for the prototype, they need to be proposed and approved rather than assumed.
 16. **CI/CD** — the brief requires quality gates be applied to changes but does not require a CI pipeline explicitly. Unclear whether gates are expected to run locally only, or wired into CI as part of the deliverable.
 17. **Test framework/tooling — PARTIALLY RESOLVED (2026-08-12).** Spring Boot Test (JUnit 5, Mockito) approved as part of the stack decision (item 1). Specific conventions (e.g., whether Testcontainers is used for integration tests against a real database) remain open and depend on the database decision (item 10). No specific coverage target given beyond "unit tests" and "integration tests" being required deliverables.
 18. **Schema/migration strategy — RESOLVED (2026-08-12).** Flyway owns the schema (`src/main/resources/db/migration`); Hibernate `ddl-auto` is `validate` only — never creates/alters the production schema, and startup fails fast on any entity/schema mismatch. This was an engineer directive (not an AI-recommendation-then-approval — recorded as such in `docs/AI_WORKLOG.md`, "Decision: Schema management (Flyway)"). V1 migration created and validated against real PostgreSQL the same day.
-19. **`.gitignore`'s blanket `*.md` rule hides most documentation files from git — PARTIALLY RESOLVED, still OPEN for the rest.** `README.md` is now fixed: the engineer added a `!README.md` exception under the `.gitignore`'s IntelliJ IDEA section and committed it (`git log`: "Add Project documentation") — confirmed via `git ls-files` that it's tracked. **`CLAUDE.md` and everything under `docs/`** (`REQUIREMENTS.md`, `AI_WORKLOG.md`, and the new `FINAL_ENGINEERING_SUMMARY.md`) **remain untracked and ignored** — confirmed via `git status --ignored` as of the submission-readiness audit. This means `README.md`'s own links to those files (and this file's cross-references throughout) point at files that don't exist in a fresh clone of this repository as it stands. Still the single highest-leverage unresolved item in the project — flagged after the brownfield slice, the expiration slice, the FR-8 gap analysis, and again here; needs an explicit engineer decision (narrow the rule further, then commit `CLAUDE.md` and `docs/`) before this project can be considered submission-ready.
+19. **`.gitignore`'s blanket `*.md` rule — RESOLVED (2026-08-12), by explicit engineer decision.** Originally hid every documentation file from git (flagged repeatedly: after the brownfield slice, the expiration slice, the FR-8 gap analysis, and the submission-readiness audit). Final resolution: `README.md`, `docs/REQUIREMENTS.md`, `docs/AI_WORKLOG.md`, and `docs/FINAL_ENGINEERING_SUMMARY.md` are all now tracked and committed (confirmed via `git ls-files`/`git check-ignore`) — narrowed via targeted exceptions (`!README.md`, `!docs/`, `!docs/*.md`) rather than removing the blanket rule outright. **`CLAUDE.md` remains deliberately excluded** — a considered decision, not an oversight: it's the AI-agent-facing operating-instructions file and the most granular level of architecture/convention detail, and the engineer chose to keep it as a local working document rather than a submitted artifact. Every place that previously pointed to `CLAUDE.md` as if it were a submission-visible file (`README.md`'s "Where to go next" table, this file's deliverables checklist, `docs/FINAL_ENGINEERING_SUMMARY.md`'s intro and limitations sections) was updated in the same change to point to `docs/FINAL_ENGINEERING_SUMMARY.md`/`docs/REQUIREMENTS.md`/`docs/AI_WORKLOG.md` instead, so no submitted document contains a dead link. `docs/AI_WORKLOG.md`'s historical entries still reference `CLAUDE.md` by name where accurate to what happened at the time — those are not rewritten, per that log's append-only convention.
 
 ---
 

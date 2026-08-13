@@ -6,7 +6,9 @@ engineering activity on this project is recorded here as it happens, in append-o
 did with it, and why — not just the final diff.
 
 Related: [docs/REQUIREMENTS.md](./REQUIREMENTS.md) (requirement PR-6, acceptance criteria "AI
-task traceability"), [CLAUDE.md](../CLAUDE.md).
+task traceability"), [docs/FINAL_ENGINEERING_SUMMARY.md](./FINAL_ENGINEERING_SUMMARY.md).
+(`CLAUDE.md` is also related but is a locally-maintained file, not part of this git
+repository — see `docs/REQUIREMENTS.md` §6 item 19.)
 
 ## Entry format
 
@@ -1757,3 +1759,213 @@ remains a valid, recorded, not-yet-built deliverable, tracked separately from th
 - **Engineer decision**: N/A for this entry — an audit-and-synthesis task performed as
   instructed, not a proposal awaiting a separate accept/reject decision. The two genuine gaps
   found are reported to the engineer for a decision on next steps, not resolved here.
+
+### 2026-08-12 — Resolve `.gitignore` documentation-visibility gap; deliberately exclude CLAUDE.md
+
+- **Task / prompt intent**: following the submission-readiness audit above, the engineer
+  progressively narrowed `.gitignore`'s blanket `*.md` rule directly (outside this session,
+  confirmed by inspecting `.gitignore` and `git log`/`git status` when asked "can you check
+  now" / "fixed the docs folder but ignoring the claude.md file"): first a `!README.md`
+  exception (already recorded in the FR-8 implementation entry above), then
+  `!docs/REQUIREMENTS.md` and `!docs/AI_WORKLOG.md`, then generalized to `!docs/` and
+  `!docs/*.md` (confirmed via `git check-ignore -v` covering the newer
+  `docs/FINAL_ENGINEERING_SUMMARY.md` too, created after the two specific per-file exceptions).
+  `CLAUDE.md` itself was left with no exception, on purpose. Asked to confirm the state was
+  understood correctly and to make the engineer's intent explicit before treating it as final:
+  presented three options (include `CLAUDE.md` too; keep it excluded and update every
+  cross-reference; leave everything as-is) via a direct question. **Engineer decision: keep
+  `CLAUDE.md` excluded, update the docs.**
+- **Rationale (as given/inferred and confirmed by the decision)**: `CLAUDE.md` is Claude Code's
+  own AI-agent-facing operating-instructions file and the most granular level of architecture/
+  convention/API-field detail in the project — not shaped as an interviewer-facing artifact
+  even where its content overlaps with one. Keeping it local-only while ensuring every
+  interviewer-relevant fact it contained is also captured in `docs/FINAL_ENGINEERING_SUMMARY.md`,
+  `docs/REQUIREMENTS.md`, or `docs/AI_WORKLOG.md` (all of which **are** committed) preserves the
+  submission's completeness without shipping an AI-tool-internal file as if it were a
+  deliverable.
+- **Implementation**: updated every place that pointed to `CLAUDE.md` as if it were a
+  submission-visible file, so no committed document contains a dead link:
+  - `README.md` — intro paragraph and "Where to go next" table now point to
+    `docs/FINAL_ENGINEERING_SUMMARY.md`/`docs/REQUIREMENTS.md`/`docs/AI_WORKLOG.md` instead;
+    added an explicit note that `CLAUDE.md` is a local-only file, not part of the repository;
+    inlined the `JAVA_HOME` troubleshooting tip that had only existed in `CLAUDE.md` before, so
+    the quickstart stays self-sufficient without that file.
+  - `docs/FINAL_ENGINEERING_SUMMARY.md` — intro paragraph, the `.gitignore` risk/trade-off
+    bullet, and the assumptions/limitations section all rewritten: the `.gitignore` issue is no
+    longer framed as an open risk (it's resolved), and a new "Documentation scope" subsection
+    explains the `CLAUDE.md` decision plainly, listing exactly which four documents *are*
+    committed and sufficient on their own.
+  - `docs/REQUIREMENTS.md` — top status paragraph, the deliverables checklist (`Architecture
+    overview`, `Setup instructions`, `Testing approach`, `Runnable end-to-end prototype`, the
+    named-process-artifacts list's `CLAUDE.md` line), and §6 item 19 all rewritten from
+    "OPEN"/"caveat: still git-ignored" framing to "RESOLVED, by explicit engineer decision,"
+    with the `CLAUDE.md` exclusion stated as a considered choice rather than a leftover gap.
+  - `CLAUDE.md` itself — still updated (it remains a living document by its own stated rules,
+    used locally/for AI-agent continuity going forward) — "Current status" section rewritten to
+    record the final resolution and an explicit reminder for future sessions: keep this file
+    current, but anything an outside reviewer needs must *also* land in one of the three
+    committed docs, since this file itself won't be visible to them.
+  - `docs/AI_WORKLOG.md` (this file) — **not** retroactively edited for its ~39 pre-existing
+    historical mentions of `CLAUDE.md`; those describe what was true/done at each point in the
+    project's history and stay as written, consistent with this log's append-only convention.
+    Only this new entry documents the final decision.
+- **Tests added**: none — documentation/configuration only.
+- **Validation performed**: `git check-ignore -v` re-run against `CLAUDE.md`,
+  `docs/REQUIREMENTS.md`, `docs/AI_WORKLOG.md`, `docs/FINAL_ENGINEERING_SUMMARY.md`, and
+  `README.md` to confirm the exact current state before writing anything (rather than trusting
+  the prior entry's now-stale claims) — `CLAUDE.md` matched the blanket `*.md` rule (ignored);
+  the other four matched a negating rule (not ignored). Re-read every edited document afterward
+  to confirm no remaining reference treats `CLAUDE.md` as available in a fresh clone.
+  `./mvnw test` not re-run — no application or test code touched by this entry.
+- **Regression**: none.
+- **Scope status**: the `.gitignore` item first flagged during the brownfield slice is now
+  closed, with an explicit, documented engineer decision rather than left ambiguous. This
+  project's documentation set, as committed, is now internally consistent: every link in
+  `README.md`, `docs/REQUIREMENTS.md`, `docs/AI_WORKLOG.md`, and
+  `docs/FINAL_ENGINEERING_SUMMARY.md` resolves to a file that is actually present in a fresh
+  clone of this repository.
+
+### 2026-08-12 — Close FR-9 (well-defined requirement scenario): formalize POST /api/urls as the demonstration
+
+- **Task / prompt intent**: engineer directed closing the last open scenario, FR-9 ("the
+  project must include at least one well-defined requirement handled end-to-end"), by formally
+  designating the already-completed `POST /api/urls` create-endpoint slice as that
+  demonstration — no re-implementation, no new features, no application-code changes; a
+  retroactive but honest documentation pass over evidence that already exists, brought together
+  and cross-referenced the way FR-6/FR-7/FR-8/FR-10 already are. Requested structure: the
+  original clear requirement, task decomposition, acceptance criteria, implementation, tests,
+  PostgreSQL validation, final result.
+- **Why this slice qualifies, specifically**: `docs/REQUIREMENTS.md` §6 item 13 had left this
+  open since the ambiguous-requirement work — noting that every other scenario in this project
+  *was* engineer-specified in full, unambiguous detail up front, but none had been formally
+  labeled as *the* FR-9 demonstration. `POST /api/urls` is the clearest candidate: the entire
+  original engineer prompt (reproduced below) specified every field, constraint, validation
+  rule, layering decision, and test expectation before a single line of code was written — in
+  direct, deliberate contrast to FR-10's "Shortened URLs should expire," which was handed over
+  *without* those specifics and required 10 clarification questions before implementation could
+  even be planned. The two scenarios are each other's clearest illustration of "well-defined"
+  vs. "ambiguous" in this project, which is exactly what FR-9/FR-10 together ask a submission to
+  demonstrate.
+
+#### The original clear requirement (as given, 2026-08-12, reproduced from the "Implement POST /api/urls" entry above)
+
+A single, complete, unambiguous engineer specification, with no open questions posed back and
+none needed: entity fields and constraints (`id`, `originalUrl`, `shortCode` unique/non-null/7
+characters, `createdAt`, `clickCount` defaulting to `0`); a PostgreSQL-targeted `V1` Flyway
+migration; the already-approved short-code strategy (`SecureRandom` Base62, no sequential IDs,
+bounded collision retry, DB uniqueness as the real guarantee); a validated request DTO
+(required/non-blank/syntactically-valid/`http`/`https`-only, clean `400` on failure); a
+response DTO independent of the entity; business logic in the service layer with the controller
+kept thin; centralized exception handling with no leaked internals; a specified minimum test
+list; OpenAPI visibility for the new endpoint. Explicitly out of scope, stated up front:
+redirect, details, analytics, auth, expiration, aliases, caching, rate limiting. Real
+end-to-end validation against PostgreSQL was required in addition to automated tests. Nothing
+in this specification was silent or open to interpretation — every acceptance criterion below
+traces directly back to an explicit sentence in the original prompt.
+
+#### Task decomposition
+
+The specification was executed as eight sequenced, independently verifiable units — the same
+decomposition already visible in the original implementation entry's file list, formalized here
+as the decomposition it always was:
+
+1. Persistence layer — `UrlMapping` entity + `V1__create_url_mapping_table.sql`, kept in exact
+   sync (column lengths, nullability, the `CHECK (char_length(short_code) = 7)` constraint
+   Hibernate's mapping can't itself express).
+2. Short-code generation — `ShortCodeGenerator`, isolated with zero Spring/persistence
+   dependencies specifically so it's trivially unit-testable on its own.
+3. Request/response contracts — `CreateUrlRequest`/`CreateUrlResponse` records, plus a custom
+   `@HttpUrl` Bean Validation constraint (the built-in `@URL` can't restrict to multiple
+   specific schemes).
+4. Business logic — `UrlService.createShortUrl`: bounded retry (5 attempts) across both a
+   pre-check and the real `DataIntegrityViolationException` from the DB constraint; explicitly
+   *not* `@Transactional`, for the documented reason (a single wrapping transaction would make
+   PostgreSQL abort retries after the first collision).
+5. HTTP layer — `UrlController`: thin, `201` + `Location` header (pointing at the
+   future GET-details resource, not the public redirect URL — different resource, different
+   REST semantics) + response body.
+6. Error handling — `GlobalExceptionHandler` + `ErrorResponse` +
+   `ShortCodeGenerationException`: one uniform JSON shape, no stack traces, covers validation
+   failures, malformed JSON, and the (practically unreachable) exhausted-retry case.
+7. API documentation — `OpenApiConfig`, Swagger/OpenAPI visibility for the new endpoint.
+8. Verification — the test suite (unit/slice/full-stack) plus a dedicated real-PostgreSQL
+   end-to-end validation pass, both required by the original spec, neither treated as optional.
+
+#### Acceptance criteria
+
+Derived directly from the original requirement, with no criterion added beyond what was asked:
+
+- `originalUrl`: required, non-blank, ≤2048 characters, syntactically valid, `http`/`https`
+  scheme only → `400` with a field-level error otherwise, never a stack trace.
+- `shortCode`: exactly 7 characters, Base62 (`0-9a-zA-Z`), generated via `SecureRandom`; DB
+  `UNIQUE` constraint is the real collision guarantee; bounded retry (5 attempts) on collision,
+  loud `500` failure (not an infinite loop) if exhausted.
+- Success: `201 Created`, `Location` header pointing at `/api/urls/{shortCode}`, response body
+  containing `originalUrl`/`shortCode`/`shortUrl`/`createdAt` — never the persistence entity
+  itself.
+- All errors: uniform `ErrorResponse` JSON shape via centralized handling, no leaked exception
+  internals.
+- Endpoint visible in OpenAPI/Swagger.
+- Out of scope for this slice, and correctly absent: redirect, details, analytics, auth,
+  expiration, aliases, caching, rate limiting.
+- Validated end-to-end against a real PostgreSQL database, not solely against the H2-backed
+  automated suite.
+
+#### Implementation
+
+No code changed by this entry — implementation is the existing, unmodified production code
+from the original slice: `entity/UrlMapping.java`, `db/migration/V1__create_url_mapping_table
+.sql`, `service/ShortCodeGenerator.java`, `dto/CreateUrlRequest.java` /
+`dto/CreateUrlResponse.java` / `dto/validation/HttpUrl.java` + `HttpUrlValidator.java`,
+`service/UrlService.java` (the `createShortUrl`/`createWithGeneratedCode` path specifically —
+now also shared with the later custom-alias and expiration additions, which extended rather
+than altered this original contract), `controller/UrlController.java`,
+`exception/GlobalExceptionHandler.java` + `ErrorResponse` + `ShortCodeGenerationException`,
+`config/OpenApiConfig.java`. Full file-by-file detail already recorded in the "Implement
+POST /api/urls (first vertical slice)" entry above — not duplicated here.
+
+#### Tests
+
+75 tests at the time of original implementation, across 7 classes exercising exactly this
+slice's acceptance criteria: `ShortCodeGeneratorTest` (42), `HttpUrlValidatorTest` (15),
+`UrlServiceTest` (5, create-path only at the time), `UrlMappingRepositoryTest` (3),
+`UrlControllerTest` (5), `CreateShortUrlIntegrationTest` (4), `UrlShortenerApplicationTests`
+(1). These classes have since grown (custom aliases, `expiresAt`, the alias-collision
+concurrency test) as later scenarios extended the same create path, but the original
+create-only acceptance criteria above remain fully covered within today's 155-test suite —
+confirmed by rerunning it as part of this entry's validation (see below), not assumed.
+
+#### PostgreSQL validation
+
+Performed at the time of original implementation (`url-shortener-postgres` container via
+Docker Compose): confirmed Flyway ran and validated cleanly against the real datastore before
+Hibernate's `validate` check ("Successfully validated 1 migration," `flyway_schema_history`
+created); a real `POST /api/urls` HTTP request returned `201` with a 7-character Base62
+`shortCode` and the correct `Location` header; `psql` confirmed the row was actually persisted
+(`SELECT * FROM url_mapping`, `count(*) = 1`) and that the live schema matched the migration
+exactly (types, `NOT NULL`, `UNIQUE`, `CHECK`); blank `originalUrl` → `400`; `ftp://...` → `400`
+(scheme rejected); `/actuator/health` → `200 UP`; `/v3/api-docs` included the new path;
+`/swagger-ui/index.html` → `200`. Full narrative in the original entry above.
+
+#### Final result
+
+FR-9 is satisfied by `POST /api/urls`: a requirement specified completely and unambiguously up
+front, decomposed into eight independently verifiable units, implemented exactly to the given
+acceptance criteria (no scope drift in either direction), tested at every layer, and validated
+end to end against a real PostgreSQL database — with zero clarification questions needed before
+implementation could begin, the defining contrast against FR-10's ambiguous-requirement
+scenario. `docs/REQUIREMENTS.md` §6 item 13 is now fully resolved (previously "PARTIALLY
+RESOLVED," pending exactly this labeling decision).
+
+- **Tests added**: none — no code changed; this entry documents existing, already-passing
+  tests.
+- **Validation performed**: `./mvnw clean test` re-run as part of this entry —
+  **155 tests, 0 failures, 0 errors** — confirming the create-path acceptance criteria above
+  remain covered by the current suite, not just the historical 75-test snapshot. No
+  `./mvnw clean package` or real-PostgreSQL re-run performed for this entry specifically (no
+  code changed; the original entry's real-PostgreSQL validation stands as the evidence for this
+  slice, and no later scenario touching the same create path — custom aliases, expiration —
+  reported a regression when it re-validated against real PostgreSQL at the time).
+- **Regression**: none — documentation-only entry, zero application or test code touched.
+- **Engineer decision**: **Accepted** — `POST /api/urls` formally designated as the FR-9
+  demonstration, closing the last open required scenario in `docs/REQUIREMENTS.md`.
