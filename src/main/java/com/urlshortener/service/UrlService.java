@@ -15,12 +15,17 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
+
 /**
  * Business logic for creating shortened URLs — either with a randomly generated code or a
  * caller-supplied custom alias (see docs/AI_WORKLOG.md, "Brownfield: add optional custom
- * aliases to POST /api/urls"). Both kinds of short code live in the same
- * {@link UrlMapping#getShortCode()} column and are looked up identically by every other
- * endpoint; only creation distinguishes them, and only in how a collision is handled.
+ * aliases to POST /api/urls") — and for reading them back, honoring an optional expiration
+ * (see docs/AI_WORKLOG.md, ambiguous-requirement scenario "Shortened URLs should expire").
+ * Both kinds of short code live in the same {@link UrlMapping#getShortCode()} column and are
+ * looked up identically by every other endpoint; only creation distinguishes them, and only in
+ * how a collision is handled.
  *
  * <p><b>Deliberately not {@code @Transactional}.</b> Each {@link UrlMappingRepository} call
  * (save/existsByShortCode) already runs in its own repository-managed transaction. If this
@@ -49,13 +54,16 @@ public class UrlService {
     private final UrlMappingRepository repository;
     private final ShortCodeGenerator shortCodeGenerator;
     private final String baseUrl;
+    private final Clock clock;
 
     public UrlService(UrlMappingRepository repository,
                        ShortCodeGenerator shortCodeGenerator,
-                       @Value("${app.base-url}") String baseUrl) {
+                       @Value("${app.base-url}") String baseUrl,
+                       Clock clock) {
         this.repository = repository;
         this.shortCodeGenerator = shortCodeGenerator;
         this.baseUrl = baseUrl;
+        this.clock = clock;
     }
 
     /**
@@ -64,15 +72,18 @@ public class UrlService {
      *                    null} means "not supplied" — generate a random code, the original,
      *                    unmodified behavior. An empty/blank value can't reach here: Bean
      *                    Validation on the request DTO already rejects it as malformed.
+     * @param expiresAt   optional absolute expiration, already validated by {@code @Future} on
+     *                    {@code CreateUrlRequest}; {@code null} means "never expires" — the
+     *                    original, unmodified behavior.
      */
-    public CreateUrlResponse createShortUrl(String originalUrl, String customAlias) {
+    public CreateUrlResponse createShortUrl(String originalUrl, String customAlias, Instant expiresAt) {
         String normalizedUrl = originalUrl.trim();
         return (customAlias != null)
-                ? createWithCustomAlias(normalizedUrl, customAlias)
-                : createWithGeneratedCode(normalizedUrl);
+                ? createWithCustomAlias(normalizedUrl, customAlias, expiresAt)
+                : createWithGeneratedCode(normalizedUrl, expiresAt);
     }
 
-    private CreateUrlResponse createWithGeneratedCode(String normalizedUrl) {
+    private CreateUrlResponse createWithGeneratedCode(String normalizedUrl, Instant expiresAt) {
         for (int attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
             String candidate = shortCodeGenerator.generate();
 
@@ -83,7 +94,7 @@ public class UrlService {
             }
 
             try {
-                UrlMapping saved = repository.save(new UrlMapping(normalizedUrl, candidate));
+                UrlMapping saved = repository.save(new UrlMapping(normalizedUrl, candidate, expiresAt));
                 return toResponse(saved);
             } catch (DataIntegrityViolationException raceLost) {
                 // Two requests generated the same code between our pre-check and the insert;
@@ -105,14 +116,14 @@ public class UrlService {
      * Instead: a colliding alias is an ordinary client-facing conflict (409), full stop — the
      * caller decides what to do next (pick another alias), not this service.
      */
-    private CreateUrlResponse createWithCustomAlias(String normalizedUrl, String customAlias) {
+    private CreateUrlResponse createWithCustomAlias(String normalizedUrl, String customAlias, Instant expiresAt) {
         // Fast pre-check to usually avoid a doomed insert; NOT the actual guarantee — see below.
         if (repository.existsByShortCode(customAlias)) {
             throw new ShortCodeAlreadyExistsException(customAlias);
         }
 
         try {
-            UrlMapping saved = repository.save(new UrlMapping(normalizedUrl, customAlias));
+            UrlMapping saved = repository.save(new UrlMapping(normalizedUrl, customAlias, expiresAt));
             return toResponse(saved);
         } catch (DataIntegrityViolationException raceLost) {
             // Two requests raced on the same alias between our pre-check and the insert; the
@@ -122,7 +133,8 @@ public class UrlService {
     }
 
     private CreateUrlResponse toResponse(UrlMapping mapping) {
-        return new CreateUrlResponse(mapping.getOriginalUrl(), mapping.getShortCode(), buildShortUrl(mapping), mapping.getCreatedAt());
+        return new CreateUrlResponse(mapping.getOriginalUrl(), mapping.getShortCode(), buildShortUrl(mapping),
+                mapping.getCreatedAt(), mapping.getExpiresAt());
     }
 
     private String buildShortUrl(UrlMapping mapping) {
@@ -143,12 +155,12 @@ public class UrlService {
      * {@code UPDATE ... SET click_count = click_count + 1} statement in the database, not from
      * this method's transactional boundary.
      *
-     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}
+     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}, or it
+     *                                    exists but has expired (see {@link #findActiveMapping})
      */
     @Transactional
     public String resolveAndRecordRedirect(String shortCode) {
-        UrlMapping mapping = repository.findByShortCode(shortCode)
-                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        UrlMapping mapping = findActiveMapping(shortCode);
         repository.incrementClickCount(shortCode);
         return mapping.getOriginalUrl();
     }
@@ -161,12 +173,12 @@ public class UrlService {
      * dirty-checking for this call and documents the intent unambiguously — this method must
      * never gain a write in the future without that becoming visually obvious.
      *
-     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}
+     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}, or it
+     *                                    exists but has expired (see {@link #findActiveMapping})
      */
     @Transactional(readOnly = true)
     public UrlDetailsResponse getUrlDetails(String shortCode) {
-        UrlMapping mapping = repository.findByShortCode(shortCode)
-                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        UrlMapping mapping = findActiveMapping(shortCode);
         return new UrlDetailsResponse(mapping.getOriginalUrl(), mapping.getShortCode(), buildShortUrl(mapping), mapping.getCreatedAt());
     }
 
@@ -179,13 +191,34 @@ public class UrlService {
      * (referrer/device/geography) is explicitly out of scope for this endpoint, not a gap to
      * quietly fill in later without a decision.
      *
-     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}
+     * @throws ShortCodeNotFoundException if no mapping exists for {@code shortCode}, or it
+     *                                    exists but has expired (see {@link #findActiveMapping})
      */
     @Transactional(readOnly = true)
     public UrlAnalyticsResponse getUrlAnalytics(String shortCode) {
-        UrlMapping mapping = repository.findByShortCode(shortCode)
-                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        UrlMapping mapping = findActiveMapping(shortCode);
         return new UrlAnalyticsResponse(mapping.getShortCode(), buildShortUrl(mapping), mapping.getOriginalUrl(),
                 mapping.getClickCount(), mapping.getCreatedAt());
+    }
+
+    /**
+     * The single place every read path resolves a short code through — centralizes both the
+     * not-found check and the expiration check (see docs/AI_WORKLOG.md, ambiguous-requirement
+     * scenario "Shortened URLs should expire") instead of duplicating either across
+     * {@link #resolveAndRecordRedirect}, {@link #getUrlDetails}, and {@link #getUrlAnalytics}.
+     *
+     * <p>An expired mapping throws the <em>exact same</em> {@link ShortCodeNotFoundException}
+     * (same message, same 404) as a code that never existed at all — deliberately, per the
+     * engineer's decision: a distinguishable response (e.g. a different status or message for
+     * "expired" vs. "never existed") would leak which short codes were ever valid, undermining
+     * the non-enumerable short-code generation this project already committed to.
+     */
+    private UrlMapping findActiveMapping(String shortCode) {
+        UrlMapping mapping = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new ShortCodeNotFoundException(shortCode));
+        if (mapping.isExpired(clock.instant())) {
+            throw new ShortCodeNotFoundException(shortCode);
+        }
+        return mapping;
     }
 }

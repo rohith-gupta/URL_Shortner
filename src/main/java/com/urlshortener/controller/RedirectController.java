@@ -39,7 +39,7 @@ public class RedirectController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "302", description = "Redirect to the original URL"),
-            @ApiResponse(responseCode = "404", description = "Unknown or malformed short code")
+            @ApiResponse(responseCode = "404", description = "Unknown, malformed, or expired short code — indistinguishable by design, see docs/AI_WORKLOG.md")
     })
     @GetMapping("/{shortCode:" + ShortCodeGenerator.ROUTE_PATTERN + "}")
     public ResponseEntity<Void> redirect(@PathVariable String shortCode) {

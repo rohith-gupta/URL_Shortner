@@ -21,7 +21,10 @@ public record CreateUrlResponse(
         String shortUrl,
 
         @Schema(description = "When this short URL was created")
-        Instant createdAt
+        Instant createdAt,
+
+        @Schema(description = "When this short URL expires, or null if it never expires", nullable = true)
+        Instant expiresAt
 
 ) {
 }

@@ -14,7 +14,9 @@ import java.util.Objects;
 /**
  * A persisted mapping from a short code — either randomly generated or a custom alias, both
  * live in this same {@code shortCode} column, see docs/AI_WORKLOG.md "Brownfield: add optional
- * custom aliases" — to the original long URL. Schema is owned by Flyway
+ * custom aliases" — to the original long URL. Optionally expires at an absolute timestamp (see
+ * docs/AI_WORKLOG.md, ambiguous-requirement scenario "Shortened URLs should expire") —
+ * {@code null} means never expires. Schema is owned by Flyway
  * ({@code src/main/resources/db/migration}); this mapping is validated against that schema at
  * startup (Hibernate {@code ddl-auto=validate}), not used to generate it.
  */
@@ -42,15 +44,24 @@ public class UrlMapping {
     @Column(name = "click_count", nullable = false)
     private long clickCount;
 
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
     /** Required by JPA; not for application use. */
     protected UrlMapping() {
     }
 
+    /** Never expires. Existing behavior, unchanged — delegates to the 3-arg constructor. */
     public UrlMapping(String originalUrl, String shortCode) {
+        this(originalUrl, shortCode, null);
+    }
+
+    public UrlMapping(String originalUrl, String shortCode, Instant expiresAt) {
         this.originalUrl = Objects.requireNonNull(originalUrl, "originalUrl must not be null");
         this.shortCode = Objects.requireNonNull(shortCode, "shortCode must not be null");
         this.createdAt = Instant.now();
         this.clickCount = 0L;
+        this.expiresAt = expiresAt;
     }
 
     public Long getId() {
@@ -71,5 +82,20 @@ public class UrlMapping {
 
     public long getClickCount() {
         return clickCount;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    /**
+     * True once {@code now} has reached or passed {@code expiresAt} ("expires at 6pm" means no
+     * longer valid starting at 6pm, not valid-through-6pm) — {@code false} if this mapping has
+     * no expiration at all. Centralized here, on the domain object, rather than as a timestamp
+     * comparison repeated in each caller — see {@code UrlService#findActiveMapping}, the single
+     * place that calls this for every read path (redirect, details, analytics).
+     */
+    public boolean isExpired(Instant now) {
+        return expiresAt != null && !now.isBefore(expiresAt);
     }
 }

@@ -38,8 +38,8 @@ class UrlControllerTest {
     @Test
     void createShortUrl_returns201WithLocationAndBody() throws Exception {
         CreateUrlResponse stubbed = new CreateUrlResponse(
-                "https://example.com", "abc1234", "http://localhost:8080/abc1234", Instant.parse("2026-08-12T10:00:00Z"));
-        when(urlService.createShortUrl("https://example.com", null)).thenReturn(stubbed);
+                "https://example.com", "abc1234", "http://localhost:8080/abc1234", Instant.parse("2026-08-12T10:00:00Z"), null);
+        when(urlService.createShortUrl("https://example.com", null, null)).thenReturn(stubbed);
 
         mockMvc.perform(post("/api/urls")
                         .contentType("application/json")
@@ -49,7 +49,46 @@ class UrlControllerTest {
                 .andExpect(header().string("Location", org.hamcrest.Matchers.endsWith("/api/urls/abc1234")))
                 .andExpect(jsonPath("$.originalUrl").value("https://example.com"))
                 .andExpect(jsonPath("$.shortCode").value("abc1234"))
-                .andExpect(jsonPath("$.shortUrl").value("http://localhost:8080/abc1234"));
+                .andExpect(jsonPath("$.shortUrl").value("http://localhost:8080/abc1234"))
+                .andExpect(jsonPath("$.expiresAt").doesNotExist());
+    }
+
+    // --- expiresAt (ambiguous-requirement scenario — see docs/AI_WORKLOG.md, "Shortened URLs
+    // should expire") ---
+
+    @Test
+    void createShortUrl_withFutureExpiresAt_returns201WithExpiresAtInResponse() throws Exception {
+        Instant expiry = Instant.parse("2026-08-20T18:00:00Z");
+        CreateUrlResponse stubbed = new CreateUrlResponse(
+                "https://example.com", "abc1234", "http://localhost:8080/abc1234", Instant.parse("2026-08-12T10:00:00Z"), expiry);
+        when(urlService.createShortUrl("https://example.com", null, expiry)).thenReturn(stubbed);
+
+        mockMvc.perform(post("/api/urls")
+                        .contentType("application/json")
+                        .content("{\"originalUrl\":\"https://example.com\",\"expiresAt\":\"2026-08-20T18:00:00Z\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.expiresAt").value("2026-08-20T18:00:00Z"));
+    }
+
+    @Test
+    void createShortUrl_pastExpiresAt_returns400() throws Exception {
+        mockMvc.perform(post("/api/urls")
+                        .contentType("application/json")
+                        .content("{\"originalUrl\":\"https://example.com\",\"expiresAt\":\"2020-01-01T00:00:00Z\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("expiresAt"));
+    }
+
+    @Test
+    void createShortUrl_currentExpiresAt_returns400() throws Exception {
+        // Computed "now" at request-build time; by the time the server validates it, real time
+        // has already passed it — correctly rejected as not-strictly-future either way.
+        String now = Instant.now().toString();
+        mockMvc.perform(post("/api/urls")
+                        .contentType("application/json")
+                        .content("{\"originalUrl\":\"https://example.com\",\"expiresAt\":\"" + now + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("expiresAt"));
     }
 
     // --- customAlias (brownfield enhancement — see docs/AI_WORKLOG.md) ---
@@ -57,8 +96,8 @@ class UrlControllerTest {
     @Test
     void createShortUrl_withValidCustomAlias_returns201WithAliasAsShortCode() throws Exception {
         CreateUrlResponse stubbed = new CreateUrlResponse(
-                "https://example.com/products", "products", "http://localhost:8080/products", Instant.parse("2026-08-12T10:00:00Z"));
-        when(urlService.createShortUrl("https://example.com/products", "products")).thenReturn(stubbed);
+                "https://example.com/products", "products", "http://localhost:8080/products", Instant.parse("2026-08-12T10:00:00Z"), null);
+        when(urlService.createShortUrl("https://example.com/products", "products", null)).thenReturn(stubbed);
 
         mockMvc.perform(post("/api/urls")
                         .contentType("application/json")
@@ -71,7 +110,7 @@ class UrlControllerTest {
 
     @Test
     void createShortUrl_duplicateCustomAlias_returns409() throws Exception {
-        when(urlService.createShortUrl("https://example.com/products", "products"))
+        when(urlService.createShortUrl("https://example.com/products", "products", null))
                 .thenThrow(new ShortCodeAlreadyExistsException("products"));
 
         mockMvc.perform(post("/api/urls")
