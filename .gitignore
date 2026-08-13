@@ -20,6 +20,8 @@ target/
 *.ipr
 *.md
 !README.md
+!docs/REQUIREMENTS.md
+!docs/AI_WORKLOG.md
 
 ### NetBeans ###
 /nbproject/private/
